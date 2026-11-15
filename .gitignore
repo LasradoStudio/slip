@@ -1,2 +1,4 @@
 # local preview settings (not part of the website)
 .claude/
+# case study pack for neillasrado.com (large media, not part of the app)
+case-study/

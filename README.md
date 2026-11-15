@@ -1,7 +1,19 @@
-# Slip: animated quotes, proposals & invoices
+# Slip by Lasrado: animated quotes, proposals & invoices
+
+**Try it free:** <https://lasradostudio.github.io/slip/> · no sign-up, works in any browser · made by [Neil Lasrado](https://neillasrado.com)
+
+![Slip homepage](media/home.jpg)
 
 You fill in your brand, the client and the sections, then send the client a link. They
 get an animated proposal with **Download PDF** and **Accept** buttons.
+
+| What your client gets | Start from a template | Edit right on the page |
+|---|---|---|
+| ![Client view](media/client-view.gif) | ![Templates](media/templates.gif) | ![Inline editing](media/inline-edit.gif) |
+
+| The editor | On a phone |
+|---|---|
+| ![Editor with live preview](media/editor.jpg) | ![Mobile client view](media/mobile.jpg) |
 
 - **No server, no account.** The whole document is compressed into the link (`#q=…`), so any static host works.
 - **Files.** The app is `index.html`, `style.css`, `proposal.css`, `config.js`, `scenes.js`, `templates.js`, `ai.js` and `app.js`.
