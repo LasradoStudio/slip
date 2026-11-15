@@ -47,7 +47,7 @@ window.SlipConfig = {
        C) Email only: opens the visitor's email app, addressed to you
      --------------------------------------------------------------- */
   feedback: {
-    // endpoint: 'https://formspree.io/f/YOUR_FORM_ID',                                 // A
+    endpoint: 'https://formspree.io/f/maeoedel',                                        // A
     // endpoint: 'https://api.web3forms.com/submit', accessKey: 'YOUR_ACCESS_KEY',      // B
     // email: 'you@example.com',                                                         // C
     ideas: [
