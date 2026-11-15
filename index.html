@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Slip by Lasrado: animated quotes &amp; invoices</title>
+<meta name="description" content="Slip by Lasrado: make a beautiful animated quote, proposal or invoice and share it as a link. Free, no sign-up.">
+<meta property="og:title" content="Slip by Lasrado">
+<meta property="og:description" content="Animated quotes, proposals and invoices your clients actually read.">
+<meta name="theme-color" content="#f4f3ef">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23121212'/%3E%3Cpath d='M10 8h8.5l4.5 4.5V24H10z' fill='%23fff'/%3E%3Cpath d='M13 16h7M13 19.5h5' stroke='%23121212' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="proposal.css">
+</head>
+<body>
+
+<!-- ============ HOME ============ -->
+<div id="home" class="home" hidden>
+  <header class="home-top">
+    <a class="brandmark" href="#home" aria-label="Slip home">
+      <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M10 8h8.5l4.5 4.5V24H10z" fill="#fff"/><path d="M13 16h7M13 19.5h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span>Slip<small class="by">by Lasrado</small></span>
+    </a>
+    <nav class="home-nav">
+      <a href="#docs" id="navDocs">Your documents</a>
+      <a href="#feedback" data-scroll="homeFeedback" id="navFeedback" hidden>Feedback</a>
+      <a href="#tip" data-scroll="homeTip" id="navTip" hidden>Support</a>
+      <a class="btn primary" href="#new">New quote</a>
+    </nav>
+  </header>
+
+  <div class="page-home">
+  <section class="home-hero">
+    <div class="hero-copy">
+      <p class="hero-eyebrow"><i></i>Quotes · Proposals · Invoices</p>
+      <h1>Quotes your clients <em>actually enjoy</em> reading.</h1>
+      <p class="hero-sub">Make an animated proposal or invoice in minutes. Start from a template, let AI draft it, or type straight onto the page. Share it as a link or a PDF.</p>
+      <div class="hero-cta">
+        <a class="btn primary big" href="#new">Create a quote</a>
+        <a class="btn big" href="#new/invoice">New invoice</a>
+        <a class="btn ghost big" href="#new/template">Browse templates →</a>
+      </div>
+      <ul class="hero-points">
+        <li>Free, no sign-up</li><li>Saved in your browser</li><li>Works on any device</li>
+      </ul>
+    </div>
+    <div class="hero-art" aria-hidden="true">
+      <div class="hero-frame"><div id="heroDoc" class="doc-host"></div></div>
+      <div class="hero-chip c1">✨ AI draft ready</div>
+      <div class="hero-chip c2">✓ Accepted by client</div>
+    </div>
+  </section>
+
+  <!-- highlighted strip: your most recent work -->
+  <section class="home-recent" id="homeRecent">
+    <div class="recent-card">
+      <div class="recent-head">
+        <div>
+          <p class="recent-eyebrow">Your documents</p>
+          <h2 id="recentTitle">Pick up where you left off</h2>
+          <p class="muted" id="recentSub"></p>
+        </div>
+        <a class="btn recent-all" href="#docs" id="recentAll">View all documents <span>→</span></a>
+      </div>
+      <div class="docs-grid recent-grid" id="recentGrid"></div>
+    </div>
+  </section>
+
+  <section class="home-feedback" id="homeFeedback" hidden>
+    <div class="fb-card">
+      <div class="fb-copy">
+        <span class="fb-badge">Coming next</span>
+        <h2>Help shape the next update</h2>
+        <p>What would make Slip more useful for you? Tap anything you’d use, or tell me in your own words. I read every message.</p>
+      </div>
+      <form id="fbForm" class="fb-form">
+        <div class="fb-chips" id="fbChips" role="group" aria-label="Features you’d like"></div>
+        <textarea id="fbText" rows="3" placeholder="Feedback, ideas, something that annoyed you… anything helps"></textarea>
+        <div class="fb-row">
+          <input id="fbEmail" type="email" placeholder="Your email (optional, if you’d like a reply)" aria-label="Your email (optional)">
+          <button class="btn primary" type="submit" id="fbSend">Send feedback</button>
+        </div>
+        <p class="fb-status" id="fbStatus" role="status"></p>
+      </form>
+    </div>
+  </section>
+
+  <section class="home-tip" id="homeTip" hidden>
+    <div class="tip-card">
+      <div class="tip-heart" aria-hidden="true">♥</div>
+      <div class="tip-copy"><h2 id="tipTitle"></h2><p id="tipMsg"></p></div>
+      <div class="tip-links" id="tipLinks"></div>
+    </div>
+  </section>
+  </div><!-- /page-home -->
+
+  <!-- ============ DOCUMENTS PAGE ============ -->
+  <div class="page-docs">
+  <section class="home-docs" id="homeDocs">
+    <a class="back-link" href="#home">← Home</a>
+    <div class="docs-head">
+      <div>
+        <h1>Your documents</h1>
+        <p class="muted" id="docsCount">Saved on this device.</p>
+      </div>
+      <div class="docs-tools">
+        <input id="docsQ" placeholder="Search client or number…" aria-label="Search documents">
+        <div class="seg mini" id="docsFilter" style="--n:3">
+          <span class="seg-thumb" aria-hidden="true"></span>
+          <button type="button" data-val="all">All</button>
+          <button type="button" data-val="quote">Quotes</button>
+          <button type="button" data-val="invoice">Invoices</button>
+        </div>
+        <button type="button" class="btn ghost" id="exportBtn" title="Download a backup of all documents">Export</button>
+        <button type="button" class="btn ghost" id="importBtn" title="Restore documents from a backup file">Import</button>
+        <input type="file" id="importInput" accept="application/json,.json" hidden>
+      </div>
+    </div>
+    <div class="sync-bar" id="syncBar">
+      <svg class="sync-ic" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M7.5 18.5h10a4 4 0 0 0 .4-7.98A6 6 0 0 0 6.3 9.6 4.5 4.5 0 0 0 7.5 18.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      <p id="syncText"><b>Saved in this browser only.</b> Clearing your browser data or switching computers would lose them. Connect Google Drive to keep a copy in your Drive and open them anywhere.</p>
+      <div class="sync-btns">
+        <button type="button" class="btn primary" id="syncBtn">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M8 3h8l6 10.5-4 7H6l-4-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 3l6 10.5H2M16 3l-6 10.5L14 20.5M22 13.5H10" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".7"/></svg>
+          Connect Google Drive
+        </button>
+        <button type="button" class="btn" id="syncNow" hidden>Sync now</button>
+        <button type="button" class="linkish" id="syncOff" hidden>Disconnect</button>
+      </div>
+    </div>
+    <div class="docs-grid" id="docsGrid"></div>
+  </section>
+  </div><!-- /page-docs -->
+
+  <footer class="home-foot">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brandmark" href="#home" aria-label="Slip home">
+          <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M10 8h8.5l4.5 4.5V24H10z" fill="#fff"/><path d="M13 16h7M13 19.5h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Slip<small class="by">by Lasrado</small></span>
+        </a>
+        <p>Animated quotes, proposals and invoices your clients actually read. Free, no sign-up.</p>
+      </div>
+      <nav class="foot-col" aria-label="Create">
+        <h4>Create</h4>
+        <a href="#new">New quote</a>
+        <a href="#new/invoice">New invoice</a>
+        <a href="#new/template">Templates</a>
+      </nav>
+      <nav class="foot-col" aria-label="Help">
+        <h4>Slip</h4>
+        <a href="#docs">Your documents</a>
+        <a href="#feedback" data-scroll="homeFeedback" data-foot="feedback" hidden>Send feedback</a>
+        <a href="#tip" data-scroll="homeTip" data-foot="tip" hidden>Support Slip</a>
+      </nav>
+      <div class="foot-col foot-lasrado">
+        <h4>More from Lasrado</h4>
+        <p>More tools &amp; scripts for creators and freelancers, coming soon.</p>
+        <a id="footSite" href="#" target="_blank" rel="noopener" hidden>neillasrado.com ↗</a>
+      </div>
+      <div class="foot-col foot-privacy">
+        <h4>Your privacy</h4>
+        <p>No accounts, no tracking, no ads. Your documents are saved in your own browser, or in your own Google Drive if you connect it. Share links carry the document inside the link itself.</p>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© <span id="footYear"></span> Slip by Lasrado</span>
+      <span class="foot-credit" id="footCredit"></span>
+    </div>
+  </footer>
+</div>
+
+<!-- ============ EDITOR ============ -->
+<div id="editor" class="editor" data-layout="proposal" hidden>
+  <header class="topbar">
+    <a class="brandmark" href="#docs" aria-label="All documents" title="All documents">
+      <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor"/><path d="M10 8h8.5l4.5 4.5V24H10z" fill="#fff"/><path d="M13 16h7M13 19.5h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span>Slip<small class="by">by Lasrado</small></span>
+      <em class="saved" id="savedTag">Saved</em>
+    </a>
+
+    <div class="seg" id="typeSeg" style="--n:2" role="radiogroup" aria-label="Document type">
+      <span class="seg-thumb" aria-hidden="true"></span>
+      <button type="button" role="radio" data-val="quote">Quote</button>
+      <button type="button" role="radio" data-val="invoice">Invoice</button>
+    </div>
+
+    <div class="actions">
+      <button class="btn ghost" id="newBtn" type="button" title="Start a new document (keeps your brand)" aria-label="New document">
+        <svg class="show-sm" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span class="hide-xs">New</span>
+      </button>
+      <button class="btn ghost hide-sm" id="openBtn" type="button" title="Open the client view in a new tab">Open ↗</button>
+      <button class="btn" id="copyBtn" type="button">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span>Copy link</span>
+      </button>
+      <button class="btn primary" id="pdfBtn" type="button">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>PDF</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="mobile-tabs seg" id="mobileTabs" style="--n:2">
+    <span class="seg-thumb" aria-hidden="true"></span>
+    <button type="button" data-val="edit">Edit</button>
+    <button type="button" data-val="preview">Preview</button>
+  </div>
+
+  <main class="app" id="app" data-pane="edit">
+    <form class="form-pane" id="form" autocomplete="off" onsubmit="return false">
+
+      <section class="card">
+        <h2 class="card-title"><span class="step">1</span>Start</h2>
+        <div class="starters">
+          <button type="button" class="starter" id="tplBtn">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>
+            <span><b>Templates</b><small>12 industries, ready to edit</small></span>
+          </button>
+          <button type="button" class="starter ai" id="aiBtn">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 3l1.8 4.6L18.5 9.5l-4.7 1.9L12 16l-1.8-4.6L5.5 9.5l4.7-1.9z"/><path d="M19 15l.8 2.1 2.2.9-2.2.9L19 21l-.8-2.1-2.2-.9 2.2-.9z"/></svg>
+            <span><b>Draft with AI</b><small>ChatGPT · Claude · Gemini · Copilot</small></span>
+          </button>
+        </div>
+        <div class="layouts" id="layouts">
+          <button type="button" class="lay" data-layout="proposal">
+            <span class="lay-art lay-proposal" aria-hidden="true"><i></i><i></i><i></i></span>
+            <b>Proposal</b><small>Cover, a page per section, visuals</small>
+          </button>
+          <button type="button" class="lay" data-layout="classic">
+            <span class="lay-art lay-classic" aria-hidden="true"><i></i><i></i><i></i></span>
+            <b>Classic</b><small>One clean, minimal page</small>
+          </button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title"><span class="step">2</span>Your brand</h2>
+        <div class="brand-row">
+          <div class="logo-wrap">
+            <button type="button" class="logo-drop" id="logoDrop" aria-label="Upload logo">
+              <span id="logoPreview" class="logo-preview"></span>
+              <span class="logo-hint">Logo</span>
+            </button>
+            <button type="button" class="logo-x" id="logoRemove" aria-label="Remove logo" hidden>×</button>
+          </div>
+          <label class="field grow"><span>Business name</span><input data-bind="from.name" placeholder="Your studio"></label>
+        </div>
+        <input type="file" id="logoInput" accept="image/*" hidden>
+        <label class="field" data-only="proposal"><span>Tagline</span><input data-bind="from.tagline" placeholder="Innovate · Captivate · Elevate"></label>
+        <label class="field"><span>Email</span><input type="email" data-bind="from.email" placeholder="you@studio.com"></label>
+        <label class="field"><span>Address, phone &amp; details</span><textarea rows="2" data-bind="from.details" placeholder="Street, city, phone, tax ID…"></textarea></label>
+        <div class="field"><span>Brand color</span><div class="swatches" id="swatches"></div></div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title"><span class="step">3</span><span id="clientTitle">Prepared for</span></h2>
+        <div class="grid2">
+          <label class="field"><span>Client / company</span><input data-bind="to.name" placeholder="Acme Inc."></label>
+          <label class="field"><span>Contact person</span><input data-bind="to.contact" placeholder="Jordan Lee"></label>
+        </div>
+        <label class="field"><span>Client email</span><input type="email" data-bind="to.email" placeholder="client@company.com"></label>
+        <label class="field"><span>Client address</span><textarea rows="2" data-bind="to.details" placeholder="Street, city…"></textarea></label>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title"><span class="step">4</span>Details</h2>
+        <div class="grid2">
+          <label class="field"><span>Number</span><input data-bind="number" placeholder="Q-2026-001"></label>
+          <label class="field"><span>Currency</span><select data-bind="currency" id="currency"></select></label>
+          <label class="field"><span>Issue date</span><input type="date" data-bind="issued"></label>
+          <label class="field"><span id="dueLabel">Valid until</span><input type="date" data-bind="due"></label>
+        </div>
+        <label class="field" data-only="proposal"><span>Intro</span><textarea rows="3" data-bind="intro" placeholder="A short note that frames the proposal…"></textarea></label>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title"><span class="step">5</span><span id="itemsTitle">Sections</span><span class="count-pill" id="itemsCount"></span></h2>
+        <div class="add-hint" id="addHint">
+          <span class="add-hint-icon" aria-hidden="true">+</span>
+          <p><b id="addHintTitle">One section per thing you charge for</b><span id="addHintText">Website design, Logo, SEO… add as many as you need. Each gets its own page.</span></p>
+          <button type="button" class="btn primary" id="addItemTop">Add section</button>
+        </div>
+        <div class="items-head" aria-hidden="true"><span>Description</span><span>Qty</span><span>Rate</span><span>Amount</span><span></span></div>
+        <div id="items" class="items-edit"></div>
+        <button type="button" class="add-item" id="addItem"><span>+</span> <em id="addLabel">Add section</em></button>
+        <div class="grid2 adjust">
+          <label class="field suffix"><span>Discount</span><input type="number" min="0" max="100" step="any" inputmode="decimal" data-bind="discount" data-num><i>%</i></label>
+          <label class="field suffix"><span>Tax</span><input type="number" min="0" max="100" step="any" inputmode="decimal" data-bind="tax" data-num><i>%</i></label>
+        </div>
+        <div class="totals-mini">
+          <div><span>Subtotal</span><b id="tSub">-</b></div>
+          <div class="tot"><span>Total</span><b id="tTot">-</b></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title"><span class="step">6</span>Terms &amp; closing</h2>
+        <label class="field"><span class="sr">Notes</span><textarea rows="3" data-bind="notes" placeholder="Payment terms, timeline, bank details…"></textarea></label>
+        <div class="field" data-only="proposal">
+          <span>Closing banner</span>
+          <button type="button" class="m-thumb wide" data-pick="banner" id="bannerThumb" draggable="true" title="Click to choose · drop an image or video here" aria-label="Choose closing banner"></button>
+        </div>
+      </section>
+
+      <p class="fine">Drafts save automatically in this browser. Everything lives in the link. No account, no server.</p>
+    </form>
+
+    <section class="preview-pane" id="previewPane" aria-label="Live preview">
+      <div class="preview-head">
+        <span class="live"><i></i>Live preview <small>· click any text to edit · hover a visual to reframe</small></span>
+        <button type="button" class="chip" id="replayBtn">
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Replay animation
+        </button>
+      </div>
+      <div id="preview" class="doc-host"></div>
+    </section>
+  </main>
+</div>
+
+<!-- ============ VISUAL PICKER ============ -->
+<dialog id="mediaDlg" class="mdlg" aria-labelledby="mdlgTitle">
+  <div class="mdlg-head">
+    <div>
+      <h3 id="mdlgTitle">Choose a visual</h3>
+      <p id="mdlgFor">For this section</p>
+    </div>
+    <button type="button" class="icon-btn" data-close aria-label="Close">×</button>
+  </div>
+
+  <div class="seg mtabs" id="mTabs" style="--n:4">
+    <span class="seg-thumb" aria-hidden="true"></span>
+    <button type="button" data-val="motion">Motion</button>
+    <button type="button" data-val="stock">Stock</button>
+    <button type="button" data-val="link">Link</button>
+    <button type="button" data-val="upload">Upload</button>
+  </div>
+
+  <div class="mbody">
+    <div class="mpanel" data-panel="motion">
+      <p class="mhint">Looping animations tinted to your brand. They're tiny, so links stay short.</p>
+      <div class="scene-grid" id="sceneGrid"></div>
+    </div>
+
+    <div class="mpanel" data-panel="stock" hidden>
+      <div class="seg mini stock-src" id="stockSrc" style="--n:3">
+        <span class="seg-thumb" aria-hidden="true"></span>
+        <button type="button" data-val="free">Free library</button>
+        <button type="button" data-val="pexels">Pexels</button>
+        <button type="button" data-val="sites">Browse sites</button>
+      </div>
+
+      <form class="inline-form" id="stockForm">
+        <input id="stockQ" placeholder="Search e.g. laptop, coffee, office…" aria-label="Search stock">
+        <div class="seg mini" id="stockType" style="--n:2" hidden>
+          <span class="seg-thumb" aria-hidden="true"></span>
+          <button type="button" data-val="videos">Videos</button>
+          <button type="button" data-val="photos">Photos</button>
+        </div>
+        <button class="btn primary" type="submit" id="stockGo">Search</button>
+      </form>
+
+      <!-- Free library: Openverse, no account -->
+      <div id="stockFree">
+        <p class="mhint stock-note">Millions of free images cleared for commercial use, via <a href="https://openverse.org" target="_blank" rel="noopener">Openverse</a>. No account needed. The photographer’s credit is added automatically.</p>
+      </div>
+
+      <!-- Pexels: optional key for in-app photo + video search -->
+      <div id="stockSetup" class="setup" hidden>
+        <p><b>Search Pexels photos and videos inside Slip.</b> This needs a free Pexels key. No key? Use <b>Browse sites</b>: open Pexels, then paste the photo’s page link in the Link tab.</p>
+        <ol>
+          <li>Go to <a href="https://www.pexels.com/api/" target="_blank" rel="noopener">pexels.com/api</a> and click <em>Get started</em> (free).</li>
+          <li>Paste the key below. It’s saved only in this browser and never goes into links.</li>
+        </ol>
+        <div class="inline-form">
+          <input id="pexelsKey" type="password" placeholder="Pexels API key" autocomplete="off" aria-label="Pexels API key">
+          <button type="button" class="btn primary" id="pexelsSave">Save</button>
+        </div>
+      </div>
+      <p class="fine left" id="pexelsFoot" hidden>Results from <a href="https://www.pexels.com" target="_blank" rel="noopener">Pexels</a>, free to use. <button type="button" class="linkish" id="pexelsReset">Remove key</button></p>
+
+      <div class="stock-grid" id="stockGrid"></div>
+
+      <!-- Browse sites: use your own accounts, bring the file back -->
+      <div id="stockSites" class="sites" hidden></div>
+    </div>
+
+    <div class="mpanel" data-panel="link" hidden>
+      <label class="field"><span>Paste a link</span><input id="linkIn" placeholder="YouTube, Vimeo, .mp4, any image URL, or media/file.mp4"></label>
+      <p class="link-msg" id="linkMsg"></p>
+      <div class="link-prev" id="linkPrev"></div>
+      <button type="button" class="btn primary" id="linkUse" disabled>Use this</button>
+      <ul class="tips">
+        <li><b>Pinterest:</b> open the pin, right-click the image → <em>Copy image address</em> (starts with <code>i.pinimg.com</code>) and paste it here.</li>
+        <li><b>Your own site:</b> on GitHub Pages, drop files in a <code>media/</code> folder and paste <code>media/your-file.mp4</code>.</li>
+        <li>YouTube and Vimeo play muted on a loop, like a background video.</li>
+      </ul>
+    </div>
+
+    <div class="mpanel" data-panel="upload" hidden>
+      <button type="button" class="drop" id="upDrop">
+        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M5 20h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <b>Drop an image or video</b><span>or click to choose a file</span>
+      </button>
+      <input type="file" id="upInput" accept="image/*,video/*" hidden>
+      <p class="up-status" id="upStatus"></p>
+      <p class="mhint" id="upMode"></p>
+      <details class="cloud" id="cloudBox">
+        <summary>Host uploads with Cloudinary (free) so videos work in shared links</summary>
+        <p>Create a free Cloudinary account. Go to <em>Settings → Upload → Add upload preset</em>, set it to <em>Unsigned</em>, then enter the details here. They're saved only in this browser.</p>
+        <div class="grid2">
+          <label class="field"><span>Cloud name</span><input id="cloudName" placeholder="my-cloud" autocomplete="off"></label>
+          <label class="field"><span>Unsigned preset</span><input id="cloudPreset" placeholder="slip_unsigned" autocomplete="off"></label>
+        </div>
+        <button type="button" class="btn" id="cloudSave">Save</button>
+      </details>
+    </div>
+  </div>
+
+  <div class="mdlg-foot">
+    <button type="button" class="btn ghost" id="mAuto">Auto-match</button>
+    <button type="button" class="btn ghost" id="mNone">No visual</button>
+  </div>
+</dialog>
+
+<!-- ============ TEMPLATE GALLERY ============ -->
+<dialog id="tplDlg" class="mdlg wide" aria-labelledby="tplTitle">
+  <div class="mdlg-head">
+    <div>
+      <h3 id="tplTitle">Start from a template</h3>
+      <p>Replaces the intro, sections and terms. Your brand, client and layout stay as they are.</p>
+    </div>
+    <button type="button" class="icon-btn" data-close aria-label="Close">×</button>
+  </div>
+  <div class="tpl-search"><input id="tplQ" placeholder="Search e.g. video, logo, app, 3D…" aria-label="Search templates"></div>
+  <div class="mbody"><div class="tpl-grid" id="tplGrid"></div></div>
+</dialog>
+
+<!-- ============ AI ============ -->
+<dialog id="aiDlg" class="mdlg" aria-labelledby="aiTitle">
+  <div class="mdlg-head">
+    <div>
+      <h3 id="aiTitle">Draft with AI</h3>
+      <p id="aiFor">Describe the job and get a full proposal back.</p>
+    </div>
+    <button type="button" class="icon-btn" data-close aria-label="Close">×</button>
+  </div>
+
+  <div class="mbody">
+    <div class="ai-providers" id="aiProviders" role="radiogroup" aria-label="AI provider"></div>
+    <div class="ai-conn" id="aiConn"></div>
+
+    <div id="aiForm">
+      <div class="seg mini ai-mode" id="aiMode" style="--n:2" data-only-mode="draft">
+        <span class="seg-thumb" aria-hidden="true"></span>
+        <button type="button" data-val="new">New from brief</button>
+        <button type="button" data-val="polish">Polish my draft</button>
+      </div>
+      <label class="field"><span id="aiBriefLabel">The brief</span>
+        <textarea id="aiBrief" rows="5" placeholder="e.g. Bakery in Lisbon needs a new 5-page website with online orders, a menu flyer and Instagram templates. Budget around $3,500, launch in 6 weeks."></textarea>
+      </label>
+      <div class="ai-opts">
+        <label class="field"><span>Tone</span>
+          <select id="aiTone"><option>Friendly and clear</option><option>Professional</option><option>Premium and confident</option><option>Short and direct</option></select>
+        </label>
+        <label class="check" data-only-mode="draft"><input type="checkbox" id="aiPrices" checked> Suggest prices</label>
+      </div>
+    </div>
+
+    <div id="aiChat" class="ai-chat" hidden>
+      <p class="mhint"><b>1.</b> Copy the prompt <b>2.</b> Paste it into your chatbot <b>3.</b> Paste its reply below.</p>
+      <div class="ai-open" id="aiOpen"></div>
+      <label class="field"><span>Paste the chatbot’s reply</span><textarea id="aiPaste" rows="4" placeholder="{ &quot;intro&quot;: … }"></textarea></label>
+    </div>
+
+    <p class="ai-status" id="aiStatus" role="status"></p>
+    <div class="ai-result" id="aiResult" hidden></div>
+  </div>
+
+  <div class="mdlg-foot">
+    <span class="ai-note" id="aiNote"></span>
+    <button type="button" class="btn ghost" id="aiBack" hidden>Back</button>
+    <button type="button" class="btn" id="aiImport" hidden>Import reply</button>
+    <button type="button" class="btn primary" id="aiGo">Generate</button>
+  </div>
+</dialog>
+
+<!-- ============ CLIENT VIEW ============ -->
+<div id="viewer" class="viewer" hidden>
+  <div id="viewDoc" class="doc-host"></div>
+  <div class="view-actions" id="viewActions">
+    <button class="btn ghost" id="vPdf" type="button">
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Download PDF
+    </button>
+    <a class="btn primary" id="vAccept" href="#" hidden>Accept quote</a>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="drop-hint" id="dropHint" aria-hidden="true">Drop on a section in the form or the preview</div>
+
+<!-- visual toolbar (hover a visual in the preview) + reframe overlay -->
+<div class="vis-bar" id="visBar" hidden>
+  <button type="button" data-vis="reframe">⤢ Reframe</button>
+  <button type="button" data-vis="change">Change</button>
+</div>
+<div class="reframe" id="reframe" hidden>
+  <div class="rf-grid" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <div class="rf-tip">Drag to move · scroll to zoom</div>
+  <div class="rf-bar">
+    <span>Zoom</span>
+    <input type="range" id="rfZoom" min="1" max="3" step="0.01" value="1" aria-label="Zoom">
+    <button type="button" class="btn ghost" id="rfReset">Reset</button>
+    <button type="button" class="btn primary" id="rfDone">Done</button>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="scenes.js"></script>
+<script src="templates.js"></script>
+<script src="ai.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
