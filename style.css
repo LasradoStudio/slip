@@ -199,6 +199,8 @@ button { cursor: pointer; }
 .lay.on { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
 .lay b { font-size: 14px; font-weight: 600; margin-top: 6px; }
 .looks-field, .modes-field { margin-top: 14px; }
+.check.fx-check { display: flex; flex-wrap: wrap; margin: 14px 0 0; white-space: normal; }
+.check.fx-check small { flex-basis: 100%; margin-left: 23px; color: var(--muted); font-size: 12px; }
 /* Simple mode hides everything the Custom mode adds */
 .editor[data-mode="simple"] .looks-field, .editor[data-mode="simple"] .check.no-total, .editor[data-mode="simple"] .range-row,
 .editor[data-mode="simple"] .item-tools, .editor[data-mode="simple"] .refs, .editor[data-mode="simple"] .item input[data-f="u"],

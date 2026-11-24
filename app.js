@@ -145,6 +145,7 @@
       issued: isoOr(r.issued), due: isoOr(r.due),
       currency: CURRENCIES.some(c => c[0] === r.currency) ? r.currency : 'USD',
       tax: num(r.tax, 0, 100), discount: num(r.discount, 0, 100),
+      fx: r.fx === 'ryuu' ? 'ryuu' : '',                 // page effect: the Ryuu dragon flies through the cover and the thank-you page (see fx.js)
       look: r.look === 'editorial' ? 'editorial' : '',   // proposal styling: '' = soft (original), 'editorial' = paper, ink and accent-coloured mono numbers
       noTotal: r.noTotal === true,   // separate services: no combined total, and unpriced sections show no price
       color: /^#[0-9a-f]{6}$/i.test(r.color) ? r.color.toLowerCase() : SWATCHES[0],
@@ -390,12 +391,16 @@
     const LINK = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     const linkHTML = (it, cls = '') => { const u = safeLink(it.u); return u ? `<a class="pp-link ${cls}" href="${esc(u)}" target="_blank" rel="noopener noreferrer"><span>${esc(linkHost(u))}</span>${LINK}</a>` : ''; };
     const showPrice = it => on || !noTot || priced(it);
+    /* page effect layers: one under the page's text, one over it (drawn by fx.js from a single video) */
+    const fxOn = d.fx && !ctx.lite;
+    const fxBack = k => (fxOn ? `<div class="fx" data-fx="${k}" aria-hidden="true"><video muted loop playsinline preload="auto" src="media/${d.fx}-${k}.mp4"></video><canvas class="fx-b"></canvas></div>` : '');
+    const fxFront = fxOn ? '<canvas class="fx-f" aria-hidden="true"></canvas>' : '';
     const bannerHTML = d.banner && d.banner.k === 'none' ? '' : mediaHTML(d.banner || { k: 'scene', v: 'orbit' }, mctx({}));
 
     return `
 <div class="pp${d.look ? ` lk-${d.look}` : ''}" data-layout="proposal" style="${accentVars(d.color)}">
   <section class="pp-page pp-cover grain">
-    <div class="pp-glow g1"></div><div class="pp-glow g2"></div>
+    <div class="pp-glow g1"></div><div class="pp-glow g2"></div>${fxBack('intro')}
     <div class="pp-cover-mid">
       <div class="pp-cover-logo rv" style="--d:1">${logo}<span class="pp-wordmark"${ed('from.name', 'Your business')}>${on ? esc(d.from.name) : brand}</span></div>
       ${d.from.tagline || on ? `<p class="pp-tagline rv" style="--d:3"${ed('from.tagline', 'Add a tagline')}>${esc(d.from.tagline)}</p>` : ''}
@@ -404,6 +409,7 @@
       <div><span class="eyebrow">${q ? 'Proposal for' : 'Invoice for'}</span><b${ed('to.name', 'Client name')}>${on ? esc(d.to.name) : client}</b></div>
       <div class="r">${d.number ? `#${esc(d.number)}<br>` : ''}${fmtDate(d.issued)}</div>
     </div>
+    ${fxFront}
   </section>
 
   <section class="pp-page pp-overview${showCost && secs.some(isRange) ? ' wide-toc' : ''}">
@@ -505,11 +511,12 @@
     ${bannerHTML ? `<div class="pp-banner pp-media rv">${bannerHTML}</div>` : ''}
   </section>
 
-  <section class="pp-page pp-thanks grain">
+  <section class="pp-page pp-thanks grain">${fxBack('outro')}
     <h2 class="rv">Thank you</h2>
     <div class="pp-thanks-brand rv" style="--d:2">${d.logo ? `<span class="chip-logo">${logo}</span>` : logo}<span>${brand}</span></div>
     ${contact ? `<p class="pp-contact rv" style="--d:4">${contact}</p>` : ''}
     ${MADE_WITH}
+    ${fxFront}
   </section>
 </div>`;
   }
@@ -900,7 +907,9 @@
     $$('#looks .look').forEach(b => b.classList.toggle('on', b.dataset.look === (state.look || '')));
     /* Simple = the fast draft (brand, sections, prices). Custom adds looks, links, visual pages, ranges and no-total.
        A document that already uses any of those always opens in Custom. */
-    const usesCustom = !!(state.look || state.noTotal || state.items.some(it => it.v || it.u || it.r2 > it.r || it.g));
+    $('#fxWrap').hidden = !store.get('slip:fx', false) || state.layout !== 'proposal';
+    $('#fxOn').checked = !!state.fx;
+    const usesCustom = !!(state.fx || state.look || state.noTotal || state.items.some(it => it.v || it.u || it.r2 > it.r || it.g));
     const mode = usesCustom ? 'custom' : store.get('slip:mode', 'simple');
     $('#editor').dataset.mode = mode;
     $$('#modes .look').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
@@ -2054,6 +2063,7 @@
       $$('#looks .look').forEach(x => x.classList.toggle('on', x === b));
       save(); preview(true);
     });
+    $('#fxOn').addEventListener('change', e => { state.fx = e.target.checked ? 'ryuu' : ''; save(); preview(true); });
     $('#modes').addEventListener('click', e => {
       const b = e.target.closest('[data-mode]');
       if (!b) return;
@@ -2645,6 +2655,11 @@
     if ((m = /^#q=(.+)$/.exec(h))) { show('viewer'); showViewer(m[1]); return; }
     /* #import=… : the same code as a share link, but it lands in this browser's documents as an editable copy.
        For moving a document into your own Slip with one click (another device, or a draft someone prepared for you). */
+    /* #fx=on / #fx=off : shows or hides the private page-effect option in this browser's editor. Not linked from anywhere. */
+    if (h === '#fx=on' || h === '#fx=off') {
+      store.set('slip:fx', h === '#fx=on'); history.replaceState(null, '', '#docs');
+      setTimeout(() => toast(h === '#fx=on' ? 'Page effects unlocked. Open a proposal: the option is in the Start card.' : 'Page effects hidden.', 5000), 300);
+    }
     if ((m = /^#import=(.+)$/.exec(h))) {
       const code = m[1];
       history.replaceState(null, '', '#docs');   // so a reload never imports twice
