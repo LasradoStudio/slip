@@ -431,18 +431,21 @@
       const tiles = [{ m: it.m, u: it.u, c: (it.x || '').split('\n')[0].trim(), t: it.t }, ...it.g];
       const tagsHTML = t => { const a = (t || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 4); return a.length ? `<span class="cg-tags">${a.map(s => `<s>${esc(s)}</s>`).join('')}</span>` : ''; };
       const lay = it.gl || 'mosaic', n = tiles.length;
-      const tile = (t, k, span = 1) => {
+      const tile = (t, k, span = 1, dup = false) => {
         const u = safeLink(t.u), tag = u && !on ? 'a' : 'div';
         const m = t.m && t.m.k !== 'none' ? t.m : (k ? { k: 'scene', v: 'orbit' } : null);
-        return `<${tag} class="cg-t${k ? '' : ' pp-media'}"${span > 1 ? ` style="grid-column:span ${span}"` : ''}${tag === 'a' ? ` href="${esc(u)}" target="_blank" rel="noopener noreferrer"` : ''}>${mediaHTML(m, mctx({ title: t.c || it.d, text: '' }))}<span class="cg-cap">${tagsHTML(t.t)}<i>${pad(k + 1)}</i>${t.c ? `<b>${esc(t.c)}</b>` : ''}${u ? `<em>${esc(linkHost(u))}${LINK}</em>` : ''}</span></${tag}>`;
+        return `<${tag} class="cg-t${k || dup ? '' : ' pp-media'}"${span > 1 ? ` style="grid-column:span ${span}"` : ''}${tag === 'a' ? ` href="${esc(u)}" target="_blank" rel="noopener noreferrer"${dup ? ' tabindex="-1"' : ''}` : ''}>${mediaHTML(m, mctx({ title: t.c || it.d, text: '' }))}<span class="cg-cap">${tagsHTML(t.t)}<i>${pad(k + 1)}</i>${t.c ? `<b>${esc(t.c)}</b>` : ''}${u ? `<em>${esc(linkHost(u))}${LINK}</em>` : ''}</span></${tag}>`;
       };
       /* a grid of `rest` tiles in `c` columns; the last tile stretches over any empty cells */
       const gridOf = (list, from, c) => `<div class="cg-rest" style="--c:${c}">${list.map((t, j) => tile(t, from + j, j === list.length - 1 ? 1 + (c - list.length % c) % c : 1)).join('')}</div>`;
       /* bento: columns of one or two boxes on a track wider than the page; CSS breathes their sizes, a small loop drifts it */
       const bento = () => {
         const cols = [];
-        for (let k = 0; k < n;) { const take = cols.length % 2 && n - k > 1 ? 2 : 1; cols.push(tiles.slice(k, k + take).map((t, j) => tile(t, k + j))); k += take; }
-        return `<div class="cg-track">${cols.map((c, ci) => `<div class="cg-col" style="--i:${ci}">${c.join('')}</div>`).join('')}</div>`;
+        for (let k = 0; k < n;) { const take = cols.length % 2 && n - k > 1 ? 2 : 1; cols.push(tiles.slice(k, k + take).map((t, j) => [t, k + j])); k += take; }
+        const W = [46, 34, 40, 34];   // column widths, as a share of the page; fixed per position so both copies match
+        const set = dup => cols.map((c, ci) => `<div class="cg-col${dup ? ' cg-dup' : ''}" style="--w:${W[ci % 4]}"${dup ? ' aria-hidden="true"' : ''}>${c.map(([t, k]) => tile(t, k, 1, dup)).join('')}</div>`).join('');
+        /* three or more columns are wider than the page, so a second copy lets the track loop round for ever */
+        return `<div class="cg-track">${set(false)}${cols.length >= 3 ? set(true) : ''}</div>`;
       };
       const body = lay === 'bento' ? bento() : lay === 'strip' ? tiles.map((t, k) => tile(t, k)).join('')
         : lay === 'grid' ? gridOf(tiles, 0, n <= 3 ? n : n === 4 ? 2 : n <= 6 ? 3 : 4)
@@ -617,19 +620,25 @@
         if (!r.width || r.bottom < 0 || r.top > innerHeight) continue;
         const max = bMax(el), s = bState(el);
         if (max < 8) continue;
+        const dupCol = el.querySelector('.cg-dup');
+        const loop = dupCol ? dupCol.offsetLeft - el.firstElementChild.firstElementChild.offsetLeft : 0;   // width of one full set
         if (bentoDrag && bentoDrag.el === el) { /* follows the pointer */ }
         else if (s.to != null) { s.x += (s.to - s.x) * Math.min(1, dt * .008); if (Math.abs(s.to - s.x) < .5) { s.x = s.to; s.to = null; } }
         else if (s.v) {                                                         // let go mid-drag: glide to a stop
           s.x += s.v * dt; s.v *= Math.pow(.995, dt);
-          if (Math.abs(s.v) < .02 || s.x <= 0 || s.x >= max) s.v = 0;
+          if (Math.abs(s.v) < .02 || (!loop && (s.x <= 0 || s.x >= max))) s.v = 0;
           s.hold = now + 1800;
         }
         else if (!reduceMotion && now > s.hold) {
-          const edge = Math.min(s.x, max - s.x);                                  // slow into each end, then turn round
-          s.x += s.d * dt * .035 * (.15 + .85 * Math.min(1, edge / 140));
-          if (s.x >= max) s.d = -1; else if (s.x <= 0) s.d = 1;
+          if (loop) s.x += dt * .035;                                             // steady, one way, for ever
+          else {
+            const edge = Math.min(s.x, max - s.x);                                // too short to loop: slow into each end, then turn round
+            s.x += s.d * dt * .035 * (.15 + .85 * Math.min(1, edge / 140));
+            if (s.x >= max) s.d = -1; else if (s.x <= 0) s.d = 1;
+          }
         }
-        s.x = Math.max(0, Math.min(max, s.x));
+        if (loop) { const w = s.x >= loop ? -loop : s.x < 0 ? loop : 0; if (w) { s.x += w; if (s.to != null) s.to += w; if (bentoDrag && bentoDrag.el === el) bentoDrag.s += w; } }
+        else s.x = Math.max(0, Math.min(max, s.x));
         el.firstElementChild.style.transform = `translate3d(${(-s.x).toFixed(2)}px,0,0)`;
       }
       requestAnimationFrame(tick);
@@ -670,7 +679,7 @@
     const nav = e.target.closest('[data-cg-nav]');
     if (nav) {
       const el = nav.closest('.pp-visual')?.querySelector('.cg-bento');
-      if (el) { const s = bState(el); s.to = Math.max(0, Math.min(bMax(el), (s.to ?? s.x) + +nav.dataset.cgNav * el.clientWidth * .6)); holdBento(el); }
+      if (el) { const s = bState(el); const to = (s.to ?? s.x) + +nav.dataset.cgNav * el.clientWidth * .6; s.to = el.querySelector('.cg-dup') ? to : Math.max(0, Math.min(bMax(el), to)); holdBento(el); }
       return;
     }
     const vt = e.target.closest('[data-vis-view]');
