@@ -183,7 +183,7 @@
   }
   /* a total as text, and the attributes for the count-up (a range doesn't count up) */
   const totalText = (t, cur) => (t.range ? `${trim00(money(t.total, cur))} – ${trim00(money(t.hi, cur))}` : money(t.total, cur));
-  const totalAttr = (t, cur) => (t.range ? '' :` data-count="${t.total}" data-cur="${cur}"`);
+  const totalAttr = (t, cur) => ` data-count="${t.total}"${t.range ? ` data-count2="${t.hi}"` : ''} data-cur="${cur}"`;
   const visibleItems = d => d.items.filter(it => it.v || it.d.trim() || it.q * it.r || it.x.trim());
 
   function status(d) {
@@ -470,7 +470,7 @@
           <h2 class="pp-title rv" data-n="${pad(i + 1)}" style="--d:1"${ed(`items.${ix}.d`, 'Section title')}>${on ? esc(it.d) : esc(it.d) || 'Untitled section'}</h2>
           ${it.t || on ? `<p class="pp-time rv" style="--d:2">${CLOCK}Est. delivery · <span${ed(`items.${ix}.t`, 'add timeline')}>${esc(it.t)}</span></p>` : ''}
         </div>
-        ${showPrice(it) ? `<div class="pp-price rv${isRange(it) ? ' is-range' : ''}" style="--d:3">${isRange(it) ? `<b>${priceText(it, cur)}</b>` : `<b data-count="${it.q * it.r}" data-cur="${cur}"${it.q === 1 ? ed(`items.${ix}.r`, '0', ' data-num') : ''}>${money(it.q * it.r, cur)}</b>`}${it.q !== 1 ? `<small>${qty(it.q)} × ${isRange(it) ? `${money(it.r, cur)} – ${money(it.r2, cur)}` : money(it.r, cur)}</small>` : ''}</div>` : ''}
+        ${showPrice(it) ? `<div class="pp-price rv${isRange(it) ? ' is-range' : ''}" style="--d:3">${isRange(it) ? `<b data-count="${it.q * it.r}" data-count2="${it.q * it.r2}" data-cur="${cur}">${priceText(it, cur)}</b>` : `<b data-count="${it.q * it.r}" data-cur="${cur}"${it.q === 1 ? ed(`items.${ix}.r`, '0', ' data-num') : ''}>${money(it.q * it.r, cur)}</b>`}${it.q !== 1 ? `<small>${qty(it.q)} × ${isRange(it) ? `${money(it.r, cur)} – ${money(it.r2, cur)}` : money(it.r, cur)}</small>` : ''}</div>` : ''}
       </div>
       <div class="pp-desc rv" style="--d:4">${descHTML(it.x, on ? `items.${ix}.x` : '')}</div>
       <div class="pp-sec-foot rv" style="--d:5"><span>${brand}</span>${linkHTML(it)}</div>
@@ -528,27 +528,35 @@
     for (let i = n; i < bc.length; i++) a.appendChild(bc[i]);
   }
 
+  /* the text of a counting number at fraction k of the way there: one amount, or "from – to" for a range */
+  function countText(el, k) {
+    const a = +el.dataset.count, b = +el.dataset.count2, cur = el.dataset.cur;
+    if (!b) return money(a * k, cur);
+    const at = v => trim00(money(k === 1 ? v : Math.round(v * k), cur));
+    return `${at(a)} – ${at(b)}`;
+  }
   function countUp(root, delay = 420, dur = 1400) {
     const els = [...(root.matches?.('[data-count]') ? [root] : []), ...$$('[data-count]', root)];
     els.forEach(el => {
       const target = +el.dataset.count, cur = el.dataset.cur;
+      const txt = k => countText(el, k);
       cancelAnimationFrame(el._raf);
       if (el === document.activeElement) return;   // someone is editing this number
-      if (reduceMotion || !target) { el.textContent = money(target, cur); return; }
-      el.textContent = money(0, cur);
+      if (reduceMotion || !(target || +el.dataset.count2)) { el.textContent = txt(1); return; }
+      el.textContent = txt(0);
       let t0;
       const step = now => {
         if (el === document.activeElement) return;
         t0 ??= now;
         const p = Math.min(1, Math.max(0, (now - t0 - delay) / dur));
-        el.textContent = money(target * (p === 1 ? 1 : 1 - 2 ** (-10 * p)), cur);
+        el.textContent = txt(p === 1 ? 1 : 1 - 2 ** (-10 * p));
         if (p < 1) el._raf = requestAnimationFrame(step);
       };
       el._raf = requestAnimationFrame(step);
     });
   }
   function finishCounts() {
-    $$('[data-count]').forEach(el => { cancelAnimationFrame(el._raf); el.textContent = money(+el.dataset.count, el.dataset.cur); });
+    $$('[data-count]').forEach(el => { cancelAnimationFrame(el._raf); el.textContent = countText(el, 1); });
   }
   addEventListener('beforeprint', () => { finishCounts(); $$('.rv').forEach(e => e.classList.add('in')); });
 
