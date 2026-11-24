@@ -188,6 +188,13 @@
 .is-list .cg-tags { order: 5; margin: 6px 0 0; }
 .is-list .cg-tags s { border-color: var(--line-2); background: none; color: var(--muted); }
 .is-list .cg-nav { display: none; }
+/* list view hover: no outline, no dimming, no zoom. The card's top rule and title pick up the brand colour. */
+.is-list .cg-t { transition: border-color .25s, box-shadow .25s; }
+.is-list .cg-t:hover { outline: 0; box-shadow: 0 1px 0 rgba(0,0,0,.03), 0 18px 36px -22px rgba(0,0,0,.45); }
+.is-list .cg-t:hover > .media { transform: none; }
+.is-list .cg:hover .cg-t:not(:hover) > .media { filter: none; }
+.is-list .cg-t:hover .cg-cap b { color: var(--accent-ink); }
+.lk-editorial .is-list .cg-t:hover { box-shadow: none; border-top-color: var(--accent); }
 .lk-editorial .is-list .cg-t { background: none; box-shadow: none; border-top: 1.5px solid var(--ink); border-radius: 0; }
 .lk-editorial .is-list .cg-t > .media { border-radius: 6px; margin-top: 10px; }
 .lk-editorial .is-list .cg-cap { padding: 10px 0 12px; }
