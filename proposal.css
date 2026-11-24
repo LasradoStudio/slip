@@ -152,15 +152,16 @@
 .cg-bento { container-type: inline-size; display: flex; overflow: hidden; touch-action: pan-y; cursor: grab; border-radius: 14px; }
 .cg-bento:active { cursor: grabbing; }
 .cg-track { flex: none; display: flex; gap: 8px; will-change: transform; }
-.cg-col { flex: none; width: 40cqi; display: flex; flex-direction: column; gap: 8px; }
-.cg-col:nth-child(even) { width: 30cqi; }
-.cg-col:nth-child(3n) { width: 34cqi; }
+.cg-col { flex: none; width: 46cqi; display: flex; flex-direction: column; gap: 8px; }
+.cg-col:nth-child(even) { width: 34cqi; }
+.cg-col:nth-child(3n) { width: 40cqi; }
 .cg-col .cg-t { flex: 1 1 0; }
 .cg-col .cg-t:nth-child(2) { flex-grow: 1.5; }
 .cg-bento, .cg-bento * { user-select: none; -webkit-user-drag: none; }
 .cg-nav { position: absolute; z-index: 4; top: 54%; width: 38px; height: 38px; border: 0; border-radius: 50%; background: #fff; color: #111; font-size: 22px; line-height: 1; cursor: pointer; box-shadow: 0 6px 20px -6px rgba(0,0,0,.5); opacity: 0; transition: opacity .3s, transform .3s var(--ease); }
 .cg-nav.prev { left: 26px; } .cg-nav.next { right: 26px; }
 .pp-visual:hover .cg-nav { opacity: 1; }
+@media (hover: none) { .cg-nav { opacity: .9; } }
 .cg-nav:hover { transform: scale(1.1); }
 
 /* the switch sits on the page's bottom edge, half outside it */

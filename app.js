@@ -160,6 +160,7 @@
         if (Array.isArray(it.g) && it.g.length) {                   // more references on a visual page
           o.g = it.g.slice(0, 8).map(x => { x = x && typeof x === 'object' ? x : {}; const r = { m: safeMedia(x.m), u: str(x.u, 2048), c: str(x.c, 80) }; if (x.t) r.t = str(x.t, 80); return r; });
           if (['grid', 'strip', 'bento'].includes(it.gl)) o.gl = it.gl;
+          if (it.na === true) o.na = true;   // bento without arrows: drag only
         }
         if (it.v === true) o.v = true;            // visual page: full-page image, video or animation between sections
         if (it.u) o.u = str(it.u, 2048);          // optional reference link (checked again with safeLink when shown)
@@ -451,7 +452,7 @@
     <div class="pp-vis-head rv"><span class="pp-vis-title"${ed(`items.${ix}.d`, 'Add a title')}>${esc(it.d)}</span><span class="pp-idx">${pad(n)} references</span></div>
     <div class="cg cg-${lay} rv" style="--d:1;--pc:${n <= 3 ? n : n === 4 ? 2 : n <= 6 ? 3 : 4}">${body}</div>
     <div class="pp-vis-foot rv" style="--d:2" role="group" aria-label="View"><button type="button" data-vis-view="collage" aria-pressed="true" aria-label="Collage view" title="Collage view"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><rect x="2.5" y="2.5" width="6" height="6" rx="1.2"/><rect x="11.5" y="2.5" width="6" height="6" rx="1.2"/><rect x="2.5" y="11.5" width="6" height="6" rx="1.2"/><rect x="11.5" y="11.5" width="6" height="6" rx="1.2"/></svg></button><button type="button" data-vis-view="list" aria-pressed="false" aria-label="List view" title="List view"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14"/></svg></button></div>
-    ${lay === 'bento' ? '<button type="button" class="cg-nav prev" data-cg-nav="-1" aria-label="Browse left">‹</button><button type="button" class="cg-nav next" data-cg-nav="1" aria-label="Browse right">›</button>' : ''}
+    ${lay === 'bento' && !it.na ? '<button type="button" class="cg-nav prev" data-cg-nav="-1" aria-label="Browse left">‹</button><button type="button" class="cg-nav next" data-cg-nav="1" aria-label="Browse right">›</button>' : ''}
     ${on && n < 9 ? `<button type="button" class="pp-add-ref" data-add-ref="${ix}">+ Add reference</button>` : ''}
   </section>`;
     }
@@ -601,7 +602,7 @@
      (scrollLeft snaps to whole pixels and judders). It drifts left and right by itself;
      drag, swipe, scroll sideways or use the arrows to browse. */
   const bentoState = new WeakMap();
-  const bState = el => { let s = bentoState.get(el); if (!s) bentoState.set(el, s = { x: 0, d: 1, hold: 0, to: null }); return s; };
+  const bState = el => { let s = bentoState.get(el); if (!s) bentoState.set(el, s = { x: 0, d: 1, hold: 0, to: null, v: 0 }); return s; };
   const bMax = el => Math.max(0, (el.firstElementChild?.scrollWidth || 0) - el.clientWidth);
   const holdBento = el => { bState(el).hold = performance.now() + 2600; };
   let bentoDrag = null;
@@ -618,6 +619,11 @@
         if (max < 8) continue;
         if (bentoDrag && bentoDrag.el === el) { /* follows the pointer */ }
         else if (s.to != null) { s.x += (s.to - s.x) * Math.min(1, dt * .008); if (Math.abs(s.to - s.x) < .5) { s.x = s.to; s.to = null; } }
+        else if (s.v) {                                                         // let go mid-drag: glide to a stop
+          s.x += s.v * dt; s.v *= Math.pow(.995, dt);
+          if (Math.abs(s.v) < .02 || s.x <= 0 || s.x >= max) s.v = 0;
+          s.hold = now + 1800;
+        }
         else if (!reduceMotion && now > s.hold) {
           const edge = Math.min(s.x, max - s.x);                                  // slow into each end, then turn round
           s.x += s.d * dt * .035 * (.15 + .85 * Math.min(1, edge / 140));
@@ -632,21 +638,27 @@
   addEventListener('pointerdown', e => {
     const el = !e.button && !e.target.closest('[contenteditable]') && e.target.closest?.('.cg-bento');
     if (!el || el.closest('.is-list')) return;
-    const s = bState(el); s.to = null;
-    bentoDrag = { el, x: e.clientX, s: s.x, moved: false };
+    const s = bState(el); s.to = null; s.v = 0;
+    const k = el.getBoundingClientRect().width / (el.offsetWidth || 1) || 1;   // on-screen scale (the editor preview is zoomed)
+    bentoDrag = { el, x: e.clientX, s: s.x, moved: false, k, lx: e.clientX, lt: e.timeStamp, v: 0 };
   });
   addEventListener('pointermove', e => {
     if (!bentoDrag) return;
     const dx = e.clientX - bentoDrag.x;
     if (Math.abs(dx) > 4) bentoDrag.moved = true;
-    bState(bentoDrag.el).x = bentoDrag.s - dx;
+    const dtm = e.timeStamp - bentoDrag.lt;
+    if (dtm > 0) { bentoDrag.v = .7 * (-(e.clientX - bentoDrag.lx) / bentoDrag.k / dtm) + .3 * bentoDrag.v; bentoDrag.lx = e.clientX; bentoDrag.lt = e.timeStamp; }
+    bState(bentoDrag.el).x = bentoDrag.s - dx / bentoDrag.k;
     holdBento(bentoDrag.el);
   });
-  const endBentoDrag = () => {
+  const endBentoDrag = e => {
+    if (bentoDrag?.moved && e && e.timeStamp - bentoDrag.lt < 80) bState(bentoDrag.el).v = Math.max(-3, Math.min(3, bentoDrag.v));
     if (bentoDrag?.moved) { const stop = ev => { ev.preventDefault(); ev.stopPropagation(); }; addEventListener('click', stop, { capture: true, once: true }); setTimeout(() => removeEventListener('click', stop, { capture: true }), 50); }
     bentoDrag = null;
   };
   addEventListener('pointerup', endBentoDrag); addEventListener('pointercancel', endBentoDrag);
+  /* the browser's own drag of a link or picture would steal the gesture */
+  addEventListener('dragstart', e => { if (e.target.closest?.('.cg-bento')) e.preventDefault(); }, true);
   addEventListener('wheel', e => {
     const el = e.target.closest?.('.cg-bento');
     if (!el || el.closest('.is-list') || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
@@ -931,6 +943,7 @@
           </div>
           ${it.v ? `<div class="refs" data-only="proposal">
             <div class="refs-h"><b>References on this page</b><span class="gl">${[['', 'Mosaic'], ['grid', 'Grid'], ['strip', 'Strip'], ['bento', 'Bento']].map(([v, n]) => `<button type="button" data-gl="${i}:${v}" class="${(it.gl || '') === v ? 'on' : ''}">${n}</button>`).join('')}</span></div>
+            ${it.gl === 'bento' ? `<label class="check refs-arrows"><input type="checkbox" data-f="arrows"${it.na ? '' : ' checked'}> Show arrows <small>Off: people just drag the boxes</small></label>` : ''}
             <input data-f="x" placeholder="Caption for the first visual" value="${esc((it.x || '').split('\n')[0])}" aria-label="Caption for the first visual">
             <input data-f="t" placeholder="Tags for the first visual, e.g. Advert, 3D" value="${esc(it.t || '')}" aria-label="Tags for the first visual">
             ${(it.g || []).map((r, k) => `<div class="ref-row">
@@ -2012,6 +2025,7 @@
       }
       if (item && el.dataset.f) {
         const i = +item.dataset.i, it = state.items[i], f = el.dataset.f;
+        if (f === 'arrows') { if (el.checked) delete it.na; else it.na = true; save(); preview(false); return; }
         if (f === 'v') { if (el.checked) it.v = true; else delete it.v; renderItems(); save(); renderTotals(); preview(true); return; }
         it[f] = f === 'q' || f === 'r' || f === 'r2' ? Math.max(0, parseFloat(el.value) || 0) : el.value;
         if (f === 'q' || f === 'r' || f === 'r2') $('.it-a', item).textContent = priceText(it, state.currency);
