@@ -581,6 +581,20 @@ html.lite .cg-t > .media { transition: none; }
   .pp { max-width: none; display: block; }
   .pp-page { page: slide; break-after: page; height: 167mm; min-height: 0; aspect-ratio: auto; border-radius: 0; margin: 0; }
   .pp-sec, .pp-terms { padding: 6mm; }
+  /* a slide has a fixed height, so tighten the section text until a full list plus price and timeline fits */
+  .pp-sec-body { padding: 2mm 5mm 0 4mm; }
+  .pp-sec-head { margin: 5mm 0 4mm; gap: 2mm 5mm; }
+  .pp-title, .lk-editorial .pp-title { font-size: 26pt; }
+  .lk-editorial .pp-title::before { margin-bottom: 2mm; }
+  .pp-time { margin-top: 2mm; }
+  .pp-desc { font-size: 10pt; line-height: 1.4; padding: 4mm 5mm; }
+  .pp-desc ul { gap: 2mm; }
+  .lk-editorial .pp-desc { padding: 0; }
+  .lk-editorial .pp-desc li { padding: 1.9mm 0; }
+  .lk-editorial .pp-desc ul + ul { margin-top: 2.5mm; }
+  .pp-sec-foot { margin-top: 3mm; }
+  .pp-mini .mono, .pp-mini .doc-logo { width: auto; height: 10mm; max-height: 10mm; }
+  .pp-visual.has-refs { padding: 5mm; gap: 3mm; }
   .pp-overview { padding: 12mm; }
   .pp .rv { opacity: 1 !important; transform: none !important; clip-path: none !important; }
   .pp-terms { grid-template-rows: auto 1fr; }

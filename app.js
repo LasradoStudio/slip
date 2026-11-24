@@ -2612,6 +2612,20 @@
     const h = location.hash;
     let m;
     if ((m = /^#q=(.+)$/.exec(h))) { show('viewer'); showViewer(m[1]); return; }
+    /* #import=… : the same code as a share link, but it lands in this browser's documents as an editable copy.
+       For moving a document into your own Slip with one click (another device, or a draft someone prepared for you). */
+    if ((m = /^#import=(.+)$/.exec(h))) {
+      const code = m[1];
+      history.replaceState(null, '', '#docs');   // so a reload never imports twice
+      decode(code).then(raw => {
+        const id = newId();
+        if (!saveDoc(id, normalize(raw))) throw new Error('storage');
+        history.replaceState(null, '', `#doc/${id}`);
+        route();
+        toast('Saved to your documents. This copy is yours to edit.', 5000);
+      }).catch(err => { console.error('Slip import failed:', err); route(); toast('That import link looks broken, or this browser’s storage is full.', 6000); });
+      return;
+    }
     if ((m = /^#new(?:\/(invoice|template))?$/.exec(h))) {
       flushSave();
       const id = createDoc(m[1] === 'invoice' ? 'invoice' : 'quote');

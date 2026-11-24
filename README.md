@@ -28,6 +28,7 @@ Every quote and invoice saves automatically ("Saved ✓" appears next to the log
 - **Open**, **Duplicate**, **Copy link**, **Delete** (with Undo).
 - **→ Invoice:** turns a quote into an invoice with the next invoice number and a due date 14 days out.
 - **New** in the editor starts a fresh document with your brand, layout and terms copied over. Numbers go up automatically (`Q-2026-001` → `Q-2026-002`).
+- **Import link:** change `#q=` to `#import=` in any share link and open it. Instead of the read-only client view, the document is saved into this browser's documents as an editable copy and opens in the editor.
 - **Export / Import:** everything lives in this browser, so export a backup file to move your documents to another device or keep a copy. (Videos uploaded without Cloudinary don't come along.)
 
 ### Where documents are saved
