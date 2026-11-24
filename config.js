@@ -3,6 +3,9 @@
 window.SlipConfig = {
   siteName: 'Slip by Lasrado',
 
+  /* Where the "Made with Slip" credit at the end of every document points. */
+  siteUrl: 'https://lasradostudio.github.io/slip/',
+
   /* FOOTER CREDIT: "Made by …" at the bottom of the homepage.
      Add your website (must start with https://) and your name becomes a link. */
   author: {

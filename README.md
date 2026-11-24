@@ -80,6 +80,20 @@ The box (and its nav and footer links) appear once one is set.
 
 The footer has Create links, your documents, feedback and support links, a short privacy note, and **"Made by Neil Lasrado"**. Set `config.js → author.url` to your website (starting with `https://`). Your name becomes a link, and a "Creator's website" link appears too.
 
+## "Made with Slip" credit
+
+Every document ends with a small **Made with Slip** link (on the thank-you page in Proposal, under the footer in Classic), also clickable in the PDF. It points to `config.js → siteUrl`.
+
+## Simple and Custom
+
+The editor has two modes, chosen in the **Start** card. **Simple** is the fast draft: your brand, a colour, sections and prices. **Custom** adds everything else: the Editorial look, links, visual pages and reference collages, price ranges and the no-total option. A document that already uses a Custom feature always opens in Custom.
+
+## Slower computers
+
+Animations that are off screen pause themselves. If the page still can't keep up (roughly below 35 frames a second for three seconds), Slip switches to a low-power mode for that visit: no film grain or large blurs, and collage tiles animate only while hovered. Nothing needs setting up.
+
+**Browsers:** Chrome and Edge 111+, Safari 16.4+, Firefox 113+ (the layouts use CSS container queries and `color-mix`, and links use `CompressionStream`).
+
 ## Adding sections
 
 The Sections card always shows **"One section per thing you charge for"** with an **Add section** button. The live preview has a big **+ Add another section** card after the last section. Click it and type the title right on the page.
@@ -103,13 +117,25 @@ Hover any image or video in the preview and click **⤢ Reframe**. Drag to choos
 | **Proposal** | Gradient cover with your logo and tagline → an overview with your intro and a clickable scope table (section, timeline, cost) → **one page per section** with a title, estimated delivery, price badge, a list of what's included, and a visual → terms with the total and a banner → a thank-you page with your contact details. Pages reveal as the client scrolls. The PDF prints as 16:9 slides. |
 | **Classic** | One clean page with a count-up total. Each line can show a timeline and details. The PDF prints on A4. |
 
+**Look (Proposal).** Under the layouts, choose **Soft** (rounded cards and colour glows, the original) or **Editorial** (paper background, ink headings, hairline rules, and numbers and labels in your brand colour). The content and layout are the same; only the styling changes.
+
+**Links.** Each section has an optional **Link** field (https only). It shows as a small button on that section's page, labelled with the site name, and stays clickable in the PDF.
+
+**Visual pages.** Tick **Visual page** on a section, or click **+ Add a visual page** in the preview, for a full page that is only an image, video or animation, with an optional caption and link. Use it between sections for references or a showreel. Visual pages aren't numbered or listed in the overview. The ↑ ↓ buttons on each section move it up or down.
+
+**Reference collage.** On a visual page, click **+ Add reference** (in the form or on the page) to add up to 8 more visuals, each with its own caption and link. They arrange themselves into a collage; pick **Mosaic** (one large, the rest beside it), **Grid** (all equal), **Strip** (side by side, widening on hover) or **Bento** (a track of boxes that drifts smoothly left and right; browse it by dragging, scrolling or with the arrows). Each reference can have **tags** (comma separated) saying what it is for. A **List view** button in the white corner tab at the top right turns any collage into readable cards and back. In the client view, hovering a tile dims the others and a tile with a link opens it. In the PDF it is a still collage and the links stay clickable.
+
+**Price range.** Under a section's timeline, fill in **Price range: up to** to show a range such as $1,000 – $2,500. The Rate is the bottom of the range. If any section has a range, the total shows as a range too.
+
+**No total.** When each section is a separate service (a capabilities proposal, a menu of options), tick **No total** under the sections. The combined total disappears from the overview and the terms page, sections without a price show no price, and the overview table drops the Timeline or Cost column if nobody filled it in.
+
 In the section details, each line becomes a ticked bullet. Type `---` on its own line for a divider.
 
 ## Visuals for each section (Proposal)
 
 Click the thumbnail next to a section to pick one of these:
 
-1. **Motion**: 12 built-in looping animations (Website, Development, Responsive, Print, Branding, Growth, Video, Social, Support, Photography, 3D, Abstract). They're tinted to your brand colour and add almost nothing to the link. By default, **Auto-match** picks one from the section title: "Flyer update" → Print, "Website redesign" → Website.
+1. **Motion** (the 3D scene can be dragged to rotate it): 15 built-in looping animations (Website, Development, Responsive, Print, Branding, Growth, Video, Social, Support, Photography, 3D, Simulation, VFX, Automation, Abstract). They're tinted to your brand colour and add almost nothing to the link. By default, **Auto-match** picks one from the section title: "Flyer update" → Print, "Website redesign" → Website.
 2. **Stock** (no API key needed):
    - **Free library:** search millions of images cleared for commercial use, via [Openverse](https://openverse.org), from inside Slip. No account needed, and the photographer's credit is added automatically. The search starts with words that suit the section, like "laptop desk" for a website section.
    - **Browse sites:** opens Pexels, Unsplash, Freepik, Pixabay, Mixkit or Pinterest in a new tab, already searching your words, so you can use your own account there. Each site has a tip for bringing the file back:

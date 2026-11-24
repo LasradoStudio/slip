@@ -236,6 +236,18 @@
             <b>Classic</b><small>One clean, minimal page</small>
           </button>
         </div>
+        <div class="field modes-field"><span>Editor</span>
+          <div class="looks" id="modes">
+            <button type="button" class="look" data-mode="simple"><span><b>Simple</b><small>Fast draft: brand, sections, prices</small></span></button>
+            <button type="button" class="look" data-mode="custom"><span><b>Custom</b><small>Looks, links, visual pages, ranges</small></span></button>
+          </div>
+        </div>
+        <div class="field looks-field" data-only="proposal"><span>Look</span>
+          <div class="looks" id="looks">
+            <button type="button" class="look" data-look=""><i class="look-art la-soft" aria-hidden="true">01</i><span><b>Soft</b><small>Rounded cards, colour glow</small></span></button>
+            <button type="button" class="look" data-look="editorial"><i class="look-art la-editorial" aria-hidden="true">01</i><span><b>Editorial</b><small>Paper, ink, coloured numbers</small></span></button>
+          </div>
+        </div>
       </section>
 
       <section class="card">
@@ -292,7 +304,8 @@
           <label class="field suffix"><span>Discount</span><input type="number" min="0" max="100" step="any" inputmode="decimal" data-bind="discount" data-num><i>%</i></label>
           <label class="field suffix"><span>Tax</span><input type="number" min="0" max="100" step="any" inputmode="decimal" data-bind="tax" data-num><i>%</i></label>
         </div>
-        <div class="totals-mini">
+        <label class="check no-total"><input type="checkbox" id="noTotal"> No total <small>Each section is a separate service. Sections without a price show none.</small></label>
+        <div class="totals-mini" id="totalsMini">
           <div><span>Subtotal</span><b id="tSub">-</b></div>
           <div class="tot"><span>Total</span><b id="tTot">-</b></div>
         </div>

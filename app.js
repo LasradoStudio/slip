@@ -111,6 +111,9 @@
     const o = { x: Math.round(c(f.x, 0, 100, 50) * 10) / 10, y: Math.round(c(f.y, 0, 100, 50) * 10) / 10, z: Math.round(c(f.z, 1, 3, 1) * 100) / 100 };
     return o.x === 50 && o.y === 50 && o.z === 1 ? null : o;
   }
+  /* A link we are willing to put in href="": https only */
+  const safeLink = v => (typeof v === 'string' && v.length < 2048 && /^https:\/\/[^\s"'<>\\]+$/i.test(v.trim()) ? v.trim() : '');
+  const linkHost = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return 'Open link'; } };
   const frameStyle = f => (f ? ` style="object-position:${f.x}% ${f.y}%;transform:scale(${f.z});transform-origin:${f.x}% ${f.y}%"` : '');
   function safeMedia(m) {
     if (!m || typeof m !== 'object') return null;
@@ -142,6 +145,8 @@
       issued: isoOr(r.issued), due: isoOr(r.due),
       currency: CURRENCIES.some(c => c[0] === r.currency) ? r.currency : 'USD',
       tax: num(r.tax, 0, 100), discount: num(r.discount, 0, 100),
+      look: r.look === 'editorial' ? 'editorial' : '',   // proposal styling: '' = soft (original), 'editorial' = paper, ink and accent-coloured mono numbers
+      noTotal: r.noTotal === true,   // separate services: no combined total, and unpriced sections show no price
       color: /^#[0-9a-f]{6}$/i.test(r.color) ? r.color.toLowerCase() : SWATCHES[0],
       logo: safeSrc(r.logo, 'img').startsWith('local:') ? '' : (r.logo && String(r.logo).length < 160000 ? safeSrc(r.logo, 'img') : ''),
       banner: safeMedia(r.banner),
@@ -150,19 +155,36 @@
       intro: str(r.intro, 1200),
       items: (Array.isArray(r.items) ? r.items : []).slice(0, 60).map(it => {
         it = it && typeof it === 'object' ? it : {};
-        return { d: str(it.d, 200), q: num(it.q, 0, 1e7), r: num(it.r, 0, 1e11), t: str(it.t, 40), x: str(it.x, 1500), m: safeMedia(it.m) };
+        const o = { d: str(it.d, 200), q: num(it.q, 0, 1e7), r: num(it.r, 0, 1e11), t: str(it.t, 40), x: str(it.x, 1500), m: safeMedia(it.m) };
+        const r2 = num(it.r2, 0, 1e11); if (r2 > o.r) o.r2 = r2;   // price range: r is "from", r2 is "to"
+        if (Array.isArray(it.g) && it.g.length) {                   // more references on a visual page
+          o.g = it.g.slice(0, 8).map(x => { x = x && typeof x === 'object' ? x : {}; const r = { m: safeMedia(x.m), u: str(x.u, 2048), c: str(x.c, 80) }; if (x.t) r.t = str(x.t, 80); return r; });
+          if (['grid', 'strip', 'bento'].includes(it.gl)) o.gl = it.gl;
+        }
+        if (it.v === true) o.v = true;            // visual page: full-page image, video or animation between sections
+        if (it.u) o.u = str(it.u, 2048);          // optional reference link (checked again with safeLink when shown)
+        return o;
       }),
       notes: str(r.notes, 1500),
     };
   }
 
+  const hiRate = it => (it.r2 > it.r ? it.r2 : it.r);
+  const isRange = it => it.r2 > it.r;
+  const trim00 = s => s.replace(/[.,]00(?=\D*$)/, '');
+  const priceText = (it, cur) => (isRange(it) ? `${trim00(money(it.q * it.r, cur))} – ${trim00(money(it.q * it.r2, cur))}` : money(it.q * it.r, cur));
   function totals(d) {
     const sub = d.items.reduce((s, it) => s + it.q * it.r, 0);
     const disc = sub * d.discount / 100;
     const tax = (sub - disc) * d.tax / 100;
-    return { sub, disc, tax, total: sub - disc + tax };
+    const k = (1 - d.discount / 100) * (1 + d.tax / 100);
+    const hi = d.items.reduce((s, it) => s + it.q * hiRate(it), 0) * k;   // top of the range, when any section has one
+    return { sub, disc, tax, total: sub - disc + tax, hi, range: hi > sub - disc + tax };
   }
-  const visibleItems = d => d.items.filter(it => it.d.trim() || it.q * it.r || it.x.trim());
+  /* a total as text, and the attributes for the count-up (a range doesn't count up) */
+  const totalText = (t, cur) => (t.range ? `${trim00(money(t.total, cur))} – ${trim00(money(t.hi, cur))}` : money(t.total, cur));
+  const totalAttr = (t, cur) => (t.range ? '' :` data-count="${t.total}" data-cur="${cur}"`);
+  const visibleItems = d => d.items.filter(it => it.v || it.d.trim() || it.q * it.r || it.x.trim());
 
   function status(d) {
     const due = parseISO(d.due);
@@ -258,12 +280,16 @@
   /* ---------- renderers ---------- */
   const logoHTML = d => (d.logo ? `<img class="doc-logo" src="${esc(d.logo)}" alt="${esc(d.from.name)}">` : `<span class="mono">${esc(initials(d.from.name))}</span>`);
 
+  /* Small credit at the end of every document, so clients can find Slip. Set siteUrl in config.js. */
+  const SLIP_URL = /^https:\/\//.test(window.SlipConfig?.siteUrl || '') ? window.SlipConfig.siteUrl : 'https://lasradostudio.github.io/slip/';
+  const MADE_WITH = `<a class="made-with" href="${SLIP_URL}" target="_blank" rel="noopener">Made with <b>Slip</b> · free animated proposals</a>`;
+
   function renderClassic(d, ctx = {}) {
     const t = totals(d), q = d.type === 'quote', kind = q ? 'Quote' : 'Invoice', cur = d.currency, st = status(d);
     const on = !!ctx.edit, ed = (path, ph, extra) => editAttr(on, path, ph, extra);
     let n = 0;
     const A = (cls = '') => `class="a ${cls}" style="--d:${Math.min(n++, 22)}"`;
-    const items = on ? d.items : visibleItems(d);
+    const items = (on ? d.items : visibleItems(d)).filter(it => !it.v);
     return `
 <article class="doc" data-layout="classic" style="${accentVars(d.color)}">
   <div class="doc-bar"></div>
@@ -279,11 +305,11 @@
       <h1${ed('to.name', 'Client name')}>${on ? esc(d.to.name) : esc(d.to.name || d.to.contact) || 'Your client'}</h1>
       ${st ? `<span class="pill ${st.k}"><i></i>${esc(st.t)}</span>` : ''}
     </div>
-    <div ${A('hero-total')}>
+    ${d.noTotal ? '' : `<div ${A('hero-total')}>
       <p class="eyebrow">${q ? 'Quote total' : 'Amount due'}</p>
-      <div class="big" data-count="${t.total}" data-cur="${cur}">${money(t.total, cur)}</div>
+      <div class="big"${totalAttr(t, cur)}>${totalText(t, cur)}</div>
       <div class="sub">${q ? 'Valid until' : 'Due'} ${fmtDate(d.due)}</div>
-    </div>
+    </div>`}
   </section>
   <section class="parties">
     <div ${A()}><h3>From</h3><p><strong>${esc(d.from.name) || '-'}</strong>${esc(d.from.details)}${d.from.email ? `\n${esc(d.from.email)}` : ''}</p></div>
@@ -297,21 +323,22 @@
     ${items.length ? items.map(it => { const ix = d.items.indexOf(it); return `
     <div ${A('line')}>
       <span class="l-d"><span${ed(`items.${ix}.d`, 'Item')}>${on ? esc(it.d) : esc(it.d) || 'Item'}</span>${it.t ? `<span class="l-t">${esc(it.t)}</span>` : ''}<span class="l-sub">${qty(it.q)} × ${money(it.r, cur)}</span>${it.x.trim() || on ? `<span class="l-x"${ed(`items.${ix}.x`, 'Add details…')}>${esc(on ? it.x : it.x.trim().replace(/^[-–—_=]{3,}$/gm, '').replace(/\n{2,}/g, '\n'))}</span>` : ''}</span>
-      <span class="l-q">${qty(it.q)}</span><span class="l-r">${money(it.r, cur)}</span><span class="l-a">${money(it.q * it.r, cur)}</span>
+      <span class="l-q">${qty(it.q)}</span><span class="l-r">${money(it.r, cur)}</span><span class="l-a">${priceText(it, cur)}</span>
     </div>`; }).join('') : `<div ${A('line empty')}><span>No line items yet</span></div>`}
     ${on ? '<button type="button" class="add-line" data-add-section>+ Add line item</button>' : ''}
   </section>
-  <section class="sum">
+  ${d.noTotal ? '' : `<section class="sum">
     <div ${A()}><span>Subtotal</span><span>${money(t.sub, cur)}</span></div>
     ${d.discount ? `<div ${A()}><span>Discount (${qty(d.discount)}%)</span><span>−${money(t.disc, cur)}</span></div>` : ''}
     ${d.tax ? `<div ${A()}><span>Tax (${qty(d.tax)}%)</span><span>${money(t.tax, cur)}</span></div>` : ''}
-    <div ${A('grand')}><span>Total</span><span>${money(t.total, cur)}</span></div>
-  </section>
+    <div ${A('grand')}><span>Total</span><span>${totalText(t, cur)}</span></div>
+  </section>`}
   ${d.notes.trim() || on ? `<section ${A('notes')}><h3>Notes &amp; terms</h3><div${ed('notes', 'Add payment terms…')}>${esc(on ? d.notes : d.notes.trim())}</div></section>` : ''}
   <footer ${A('doc-foot')}>
     <span>Thank you${d.to.contact ? `, <b>${esc(d.to.contact.split(' ')[0])}</b>` : ''}.</span>
     <span>${esc([d.from.name, d.from.email].filter(Boolean).join(' · '))}</span>
   </footer>
+  ${MADE_WITH}
 </article>`;
   }
 
@@ -352,10 +379,20 @@
       d.discount ? [`Discount (${qty(d.discount)}%)`, `−${money(t.disc, cur)}`] : null,
       d.tax ? [`Tax (${qty(d.tax)}%)`, money(t.tax, cur)] : null,
     ].filter(Boolean);
+    /* No-total documents: each section is its own service. Unpriced sections show no price,
+       and the scope table drops columns nobody filled in. (The editor keeps them so they stay editable.) */
+    const noTot = d.noTotal;
+    const priced = it => it.q * it.r > 0;
+    const secs = items.filter(it => !it.v);   // numbered sections; visual pages sit between them, unnumbered
+    const showCost = on || !noTot || secs.some(priced);
+    const showTime = on || !noTot || secs.some(it => it.t.trim());
+    const LINK = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const linkHTML = (it, cls = '') => { const u = safeLink(it.u); return u ? `<a class="pp-link ${cls}" href="${esc(u)}" target="_blank" rel="noopener noreferrer"><span>${esc(linkHost(u))}</span>${LINK}</a>` : ''; };
+    const showPrice = it => on || !noTot || priced(it);
     const bannerHTML = d.banner && d.banner.k === 'none' ? '' : mediaHTML(d.banner || { k: 'scene', v: 'orbit' }, mctx({}));
 
     return `
-<div class="pp" data-layout="proposal" style="${accentVars(d.color)}">
+<div class="pp${d.look ? ` lk-${d.look}` : ''}" data-layout="proposal" style="${accentVars(d.color)}">
   <section class="pp-page pp-cover grain">
     <div class="pp-glow g1"></div><div class="pp-glow g2"></div>
     <div class="pp-cover-mid">
@@ -368,7 +405,7 @@
     </div>
   </section>
 
-  <section class="pp-page pp-overview">
+  <section class="pp-page pp-overview${showCost && secs.some(isRange) ? ' wide-toc' : ''}">
     <div>
       <p class="eyebrow rv">${q ? 'Prepared for' : 'Billed to'}</p>
       <h2 class="rv" style="--d:1"${ed('to.name', 'Client name')}>${on ? esc(d.to.name) : client}</h2>
@@ -378,29 +415,65 @@
         ${d.to.contact && d.to.name ? `<dt>Attn.</dt><dd>${esc(d.to.contact)}</dd>` : ''}
         ${d.number ? `<dt>Number</dt><dd>${esc(d.number)}</dd>` : ''}
         <dt>Issued</dt><dd>${fmtDate(d.issued)}</dd>
-        <dt>${q ? 'Valid until' : 'Due'}</dt><dd>${fmtDate(d.due)}</dd>
+        ${d.due || !noTot ? `<dt>${q ? 'Valid until' : 'Due'}</dt><dd>${fmtDate(d.due)}</dd>` : ''}
       </dl>
     </div>
-    <div class="pp-toc rv" style="--d:2">
-      <div class="pp-toc-h"><span>Scope</span><span>Timeline</span><span>Cost</span></div>
-      ${items.map((it, i) => `<button type="button" class="pp-toc-row" data-goto="${i + 1}"><span><i>${pad(i + 1)}</i>${esc(it.d) || 'Untitled'}</span><span>${esc(it.t) || '-'}</span><span>${money(it.q * it.r, cur)}</span></button>`).join('')}
-      <div class="pp-toc-total"><span>${q ? 'Total' : 'Amount due'}</span><b data-count="${t.total}" data-cur="${cur}">${money(t.total, cur)}</b></div>
+    <div class="pp-toc rv${showTime ? '' : ' no-time'}${showCost ? '' : ' no-cost'}" style="--d:2">
+      <div class="pp-toc-h"><span>${noTot ? 'Services' : 'Scope'}</span>${showTime ? '<span>Timeline</span>' : ''}${showCost ? '<span>Cost</span>' : ''}</div>
+      ${secs.map((it, i) => `<button type="button" class="pp-toc-row" data-goto="${i + 1}"><span><i>${pad(i + 1)}</i>${esc(it.d) || 'Untitled'}</span>${showTime ? `<span>${esc(it.t) || '-'}</span>` : ''}${showCost ? `<span>${noTot && !priced(it) ? '-' : priceText(it, cur)}</span>` : ''}</button>`).join('')}
+      ${noTot ? '' : `<div class="pp-toc-total"><span>${q ? 'Total' : 'Amount due'}</span><b${totalAttr(t, cur)}>${totalText(t, cur)}</b></div>`}
     </div>
   </section>
 
-  ${items.map((it, i) => { const ix = d.items.indexOf(it); return `
+  ${items.map(it => { const ix = d.items.indexOf(it), i = secs.indexOf(it);
+    if (it.v && it.g && it.g.length) {
+      const tiles = [{ m: it.m, u: it.u, c: (it.x || '').split('\n')[0].trim(), t: it.t }, ...it.g];
+      const tagsHTML = t => { const a = (t || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 4); return a.length ? `<span class="cg-tags">${a.map(s => `<s>${esc(s)}</s>`).join('')}</span>` : ''; };
+      const lay = it.gl || 'mosaic', n = tiles.length;
+      const tile = (t, k, span = 1) => {
+        const u = safeLink(t.u), tag = u && !on ? 'a' : 'div';
+        const m = t.m && t.m.k !== 'none' ? t.m : (k ? { k: 'scene', v: 'orbit' } : null);
+        return `<${tag} class="cg-t${k ? '' : ' pp-media'}"${span > 1 ? ` style="grid-column:span ${span}"` : ''}${tag === 'a' ? ` href="${esc(u)}" target="_blank" rel="noopener noreferrer"` : ''}>${mediaHTML(m, mctx({ title: t.c || it.d, text: '' }))}<span class="cg-cap">${tagsHTML(t.t)}<i>${pad(k + 1)}</i>${t.c ? `<b>${esc(t.c)}</b>` : ''}${u ? `<em>${esc(linkHost(u))}${LINK}</em>` : ''}</span></${tag}>`;
+      };
+      /* a grid of `rest` tiles in `c` columns; the last tile stretches over any empty cells */
+      const gridOf = (list, from, c) => `<div class="cg-rest" style="--c:${c}">${list.map((t, j) => tile(t, from + j, j === list.length - 1 ? 1 + (c - list.length % c) % c : 1)).join('')}</div>`;
+      /* bento: columns of one or two boxes on a track wider than the page; CSS breathes their sizes, a small loop drifts it */
+      const bento = () => {
+        const cols = [];
+        for (let k = 0; k < n;) { const take = cols.length % 2 && n - k > 1 ? 2 : 1; cols.push(tiles.slice(k, k + take).map((t, j) => tile(t, k + j))); k += take; }
+        return `<div class="cg-track">${cols.map((c, ci) => `<div class="cg-col" style="--i:${ci}">${c.join('')}</div>`).join('')}</div>`;
+      };
+      const body = lay === 'bento' ? bento() : lay === 'strip' ? tiles.map((t, k) => tile(t, k)).join('')
+        : lay === 'grid' ? gridOf(tiles, 0, n <= 3 ? n : n === 4 ? 2 : n <= 6 ? 3 : 4)
+        : tile(tiles[0], 0) + gridOf(tiles.slice(1), 1, n - 1 <= 2 ? 1 : n - 1 <= 6 ? 2 : 3);
+      return `
+  <section class="pp-page pp-sec pp-visual has-refs" data-item="${ix}">
+    <div class="pp-vis-head rv"><span class="pp-vis-title"${ed(`items.${ix}.d`, 'Add a title')}>${esc(it.d)}</span><span class="pp-idx">${pad(n)} references</span></div>
+    <div class="pp-vis-corner"><button type="button" data-vis-toggle aria-pressed="false"><span class="vs-a">☰ List view</span><span class="vs-b">▦ Collage view</span></button></div>
+    <div class="cg cg-${lay} rv" style="--d:1;--pc:${n <= 3 ? n : n === 4 ? 2 : n <= 6 ? 3 : 4}">${body}</div>
+    ${lay === 'bento' ? '<button type="button" class="cg-nav prev" data-cg-nav="-1" aria-label="Browse left">‹</button><button type="button" class="cg-nav next" data-cg-nav="1" aria-label="Browse right">›</button>' : ''}
+    ${on && n < 9 ? `<button type="button" class="pp-add-ref" data-add-ref="${ix}">+ Add reference</button>` : ''}
+  </section>`;
+    }
+    if (it.v) return `
+  <section class="pp-page pp-sec pp-visual" data-item="${ix}">
+    <div class="pp-media rv">${mediaHTML(it.m && it.m.k !== 'none' ? it.m : { k: 'scene', v: 'orbit' }, mctx({ title: it.d, text: it.x }))}</div>
+    ${it.d.trim() || safeLink(it.u) || on ? `<div class="pp-vis-cap rv" style="--d:2"><span class="pp-vis-title"${ed(`items.${ix}.d`, 'Add a caption')}>${esc(it.d)}</span>${linkHTML(it)}</div>` : ''}
+    ${on ? `<button type="button" class="pp-add-ref" data-add-ref="${ix}">+ Add reference</button>` : ''}
+  </section>`;
+    return `
   <section class="pp-page pp-sec${i % 2 ? ' flip' : ''}" data-sec="${i + 1}" data-item="${ix}">
     <div class="pp-sec-body">
-      <div class="pp-sec-top rv"><span class="pp-mini">${logo}</span><span class="pp-idx">${pad(i + 1)} / ${pad(items.length)}</span></div>
+      <div class="pp-sec-top rv"><span class="pp-mini">${logo}</span><span class="pp-idx">${pad(i + 1)} / ${pad(secs.length)}</span></div>
       <div class="pp-sec-head">
         <div>
-          <h2 class="pp-title rv" style="--d:1"${ed(`items.${ix}.d`, 'Section title')}>${on ? esc(it.d) : esc(it.d) || 'Untitled section'}</h2>
+          <h2 class="pp-title rv" data-n="${pad(i + 1)}" style="--d:1"${ed(`items.${ix}.d`, 'Section title')}>${on ? esc(it.d) : esc(it.d) || 'Untitled section'}</h2>
           ${it.t || on ? `<p class="pp-time rv" style="--d:2">${CLOCK}Est. delivery · <span${ed(`items.${ix}.t`, 'add timeline')}>${esc(it.t)}</span></p>` : ''}
         </div>
-        <div class="pp-price rv" style="--d:3"><b data-count="${it.q * it.r}" data-cur="${cur}"${it.q === 1 ? ed(`items.${ix}.r`, '0', ' data-num') : ''}>${money(it.q * it.r, cur)}</b>${it.q !== 1 ? `<small>${qty(it.q)} × ${money(it.r, cur)}</small>` : ''}</div>
+        ${showPrice(it) ? `<div class="pp-price rv${isRange(it) ? ' is-range' : ''}" style="--d:3">${isRange(it) ? `<b>${priceText(it, cur)}</b>` : `<b data-count="${it.q * it.r}" data-cur="${cur}"${it.q === 1 ? ed(`items.${ix}.r`, '0', ' data-num') : ''}>${money(it.q * it.r, cur)}</b>`}${it.q !== 1 ? `<small>${qty(it.q)} × ${isRange(it) ? `${money(it.r, cur)} – ${money(it.r2, cur)}` : money(it.r, cur)}</small>` : ''}</div>` : ''}
       </div>
       <div class="pp-desc rv" style="--d:4">${descHTML(it.x, on ? `items.${ix}.x` : '')}</div>
-      <div class="pp-sec-foot rv" style="--d:5">${brand}</div>
+      <div class="pp-sec-foot rv" style="--d:5"><span>${brand}</span>${linkHTML(it)}</div>
     </div>
     ${it.m && it.m.k === 'none' ? '' : `<div class="pp-media rv" style="--d:1">${mediaHTML(it.m, mctx({ title: it.d, text: it.x }))}</div>`}
   </section>`; }).join('')}
@@ -409,20 +482,21 @@
     <span class="pp-add-plus">+</span>
     <b>Add another section</b>
     <small>One per thing you charge for, like SEO setup · Logo design · Monthly maintenance</small>
-  </button>` : ''}
+  </button>
+  <button type="button" class="pp-add-vis" data-add-visual>+ Add a visual page <small>a full page for a video, image or reference, between sections</small></button>` : ''}
 
   <section class="pp-page pp-terms">
-    <div class="pp-terms-grid">
+    <div class="pp-terms-grid${noTot ? ' solo' : ''}">
       <div class="rv">
         <span class="pp-mini">${logo}</span>
         ${d.notes.trim() || on ? `<h3>Terms</h3><p${ed('notes', 'Add payment terms…')}>${esc(on ? d.notes : d.notes.trim())}</p>` : ''}
       </div>
-      <div class="pp-total rv" style="--d:2">
+      ${noTot ? '' : `<div class="pp-total rv" style="--d:2">
         ${breakdown.length > 1 ? `<div class="pp-breakdown">${breakdown.map(([a, b]) => `<span>${a}</span><span>${b}</span>`).join('')}</div>` : ''}
         <span class="eyebrow">${q ? 'Total cost' : 'Amount due'}</span>
-        <b class="pp-total-n" data-count="${t.total}" data-cur="${cur}">${money(t.total, cur)}</b>
+        <b class="pp-total-n${t.range ? ' is-range' : ''}"${totalAttr(t, cur)}>${totalText(t, cur)}</b>
         <span class="sub">${q ? 'Valid until' : 'Due'} ${fmtDate(d.due)}</span>
-      </div>
+      </div>`}
     </div>
     ${bannerHTML ? `<div class="pp-banner pp-media rv">${bannerHTML}</div>` : ''}
   </section>
@@ -431,6 +505,7 @@
     <h2 class="rv">Thank you</h2>
     <div class="pp-thanks-brand rv" style="--d:2">${d.logo ? `<span class="chip-logo">${logo}</span>` : logo}<span>${brand}</span></div>
     ${contact ? `<p class="pp-contact rv" style="--d:4">${contact}</p>` : ''}
+    ${MADE_WITH}
   </section>
 </div>`;
   }
@@ -514,7 +589,76 @@
     $$('video', host).forEach(v => { if (v.paused) { v.muted = true; v.play().catch(() => {}); } });
   }
 
+  /* Bento collages: the track is moved with a transform, which is smooth at sub-pixel speeds
+     (scrollLeft snaps to whole pixels and judders). It drifts left and right by itself;
+     drag, swipe, scroll sideways or use the arrows to browse. */
+  const bentoState = new WeakMap();
+  const bState = el => { let s = bentoState.get(el); if (!s) bentoState.set(el, s = { x: 0, d: 1, hold: 0, to: null }); return s; };
+  const bMax = el => Math.max(0, (el.firstElementChild?.scrollWidth || 0) - el.clientWidth);
+  const holdBento = el => { bState(el).hold = performance.now() + 2600; };
+  let bentoDrag = null;
+  {
+    let bentos = [], last = 0;
+    setInterval(() => { bentos = [...document.querySelectorAll('.cg-bento')]; }, 1000);   // cheap rescan instead of a query every frame
+    (function tick(now) {
+      const dt = Math.min(48, now - last || 16); last = now;
+      if (bentos.length && !document.hidden) for (const el of bentos) {
+        if (!el.isConnected || el.closest('.is-list')) continue;
+        const r = el.getBoundingClientRect();
+        if (!r.width || r.bottom < 0 || r.top > innerHeight) continue;
+        const max = bMax(el), s = bState(el);
+        if (max < 8) continue;
+        if (bentoDrag && bentoDrag.el === el) { /* follows the pointer */ }
+        else if (s.to != null) { s.x += (s.to - s.x) * Math.min(1, dt * .008); if (Math.abs(s.to - s.x) < .5) { s.x = s.to; s.to = null; } }
+        else if (!reduceMotion && now > s.hold) {
+          const edge = Math.min(s.x, max - s.x);                                  // slow into each end, then turn round
+          s.x += s.d * dt * .035 * (.15 + .85 * Math.min(1, edge / 140));
+          if (s.x >= max) s.d = -1; else if (s.x <= 0) s.d = 1;
+        }
+        s.x = Math.max(0, Math.min(max, s.x));
+        el.firstElementChild.style.transform = `translate3d(${(-s.x).toFixed(2)}px,0,0)`;
+      }
+      requestAnimationFrame(tick);
+    })(0);
+  }
+  addEventListener('pointerdown', e => {
+    const el = !e.button && !e.target.closest('[contenteditable]') && e.target.closest?.('.cg-bento');
+    if (!el || el.closest('.is-list')) return;
+    const s = bState(el); s.to = null;
+    bentoDrag = { el, x: e.clientX, s: s.x, moved: false };
+  });
+  addEventListener('pointermove', e => {
+    if (!bentoDrag) return;
+    const dx = e.clientX - bentoDrag.x;
+    if (Math.abs(dx) > 4) bentoDrag.moved = true;
+    bState(bentoDrag.el).x = bentoDrag.s - dx;
+    holdBento(bentoDrag.el);
+  });
+  const endBentoDrag = () => {
+    if (bentoDrag?.moved) { const stop = ev => { ev.preventDefault(); ev.stopPropagation(); }; addEventListener('click', stop, { capture: true, once: true }); setTimeout(() => removeEventListener('click', stop, { capture: true }), 50); }
+    bentoDrag = null;
+  };
+  addEventListener('pointerup', endBentoDrag); addEventListener('pointercancel', endBentoDrag);
+  addEventListener('wheel', e => {
+    const el = e.target.closest?.('.cg-bento');
+    if (!el || el.closest('.is-list') || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+    e.preventDefault();
+    const s = bState(el); s.to = null; s.x += e.deltaX; holdBento(el);
+  }, { passive: false });
+
   document.addEventListener('click', e => {
+    const nav = e.target.closest('[data-cg-nav]');
+    if (nav) {
+      const el = nav.closest('.pp-visual')?.querySelector('.cg-bento');
+      if (el) { const s = bState(el); s.to = Math.max(0, Math.min(bMax(el), (s.to ?? s.x) + +nav.dataset.cgNav * el.clientWidth * .6)); holdBento(el); }
+      return;
+    }
+    const vt = e.target.closest('[data-vis-toggle]');
+    if (vt) {
+      const sec = vt.closest('.pp-visual');
+      if (sec) vt.setAttribute('aria-pressed', String(sec.classList.toggle('is-list')));
+      return;
+    }
     const b = e.target.closest('[data-goto]');
     if (!b) return;
     b.closest('.pp')?.querySelector(`[data-sec="${b.dataset.goto}"]`)?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
@@ -667,7 +811,7 @@
     const d = normalize(defaults());
     if (base) {
       Object.assign(d, {
-        layout: base.layout, color: base.color, logo: base.logo, currency: base.currency, tax: base.tax,
+        layout: base.layout, look: base.look, color: base.color, logo: base.logo, currency: base.currency, tax: base.tax,
         from: { ...base.from }, notes: base.notes, banner: base.banner,
         to: { name: '', contact: '', email: '', details: '' }, intro: '',
         items: [{ d: '', q: 1, r: 0, t: '', x: '', m: null }],
@@ -724,6 +868,13 @@
     $('#editor').dataset.layout = state.layout;
     $('#previewPane').dataset.layout = state.layout;
     $$('.lay').forEach(b => b.classList.toggle('on', b.dataset.layout === state.layout));
+    $$('#looks .look').forEach(b => b.classList.toggle('on', b.dataset.look === (state.look || '')));
+    /* Simple = the fast draft (brand, sections, prices). Custom adds looks, links, visual pages, ranges and no-total.
+       A document that already uses any of those always opens in Custom. */
+    const usesCustom = !!(state.look || state.noTotal || state.items.some(it => it.v || it.u || it.r2 > it.r || it.g));
+    const mode = usesCustom ? 'custom' : store.get('slip:mode', 'simple');
+    $('#editor').dataset.mode = mode;
+    $$('#modes .look').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
     $('#itemsTitle').textContent = p ? 'Sections' : 'Line items';
     $('#addLabel').textContent = p ? 'Add section' : 'Add item';
     $('#addItemTop').textContent = p ? 'Add section' : 'Add line';
@@ -737,6 +888,8 @@
     const t = totals(state);
     $('#tSub').textContent = money(t.sub, state.currency);
     $('#tTot').textContent = money(t.total, state.currency);
+    $('#noTotal').checked = !!state.noTotal;
+    $('#totalsMini').classList.toggle('off', !!state.noTotal);
   }
 
   function thumbHTML(m, ctx) {
@@ -746,12 +899,12 @@
   function itemHTML(it, i) {
     const open = state.layout === 'proposal' || openItems.has(i);
     const sid = (!it.m || it.m.k === 'scene') ? sceneFor(it.m, { title: it.d, text: it.x }) : '';
-    return `<div class="item${open ? ' open' : ''}" data-i="${i}">
+    return `<div class="item${open ? ' open' : ''}${it.v ? ' is-visual' : ''}" data-i="${i}">
       <div class="item-row">
         <input class="it-d" data-f="d" placeholder="${state.layout === 'proposal' ? 'Section title' : 'What you’re delivering'}" value="${esc(it.d)}" aria-label="Description">
         <input class="it-q" data-f="q" type="number" min="0" step="any" inputmode="decimal" value="${it.q}" aria-label="Quantity">
         <input class="it-r" data-f="r" type="number" min="0" step="any" inputmode="decimal" value="${it.r}" aria-label="Rate">
-        <output class="it-a">${money(it.q * it.r, state.currency)}</output>
+        <output class="it-a">${priceText(it, state.currency)}</output>
         <button type="button" class="it-x" data-del="${i}" aria-label="Remove">×</button>
       </div>
       <div class="item-more">
@@ -761,7 +914,24 @@
             <input data-f="t" placeholder="Timeline, e.g. 2.5 weeks" value="${esc(it.t)}" aria-label="Timeline">
             <button type="button" class="ai-mini" data-ai="${i}" title="Write the timeline and details with AI">✨ Write</button>
           </div>
+          <label class="range-row"><span>Price range: up to</span><input data-f="r2" type="number" min="0" step="any" inputmode="decimal" placeholder="optional" value="${it.r2 > it.r ? it.r2 : ''}" aria-label="Top of the price range"><small>Rate is the “from” price</small></label>
           <textarea data-f="x" rows="3" placeholder="What’s included, one point per line. Use --- for a divider." aria-label="Details">${esc(it.x)}</textarea>
+          <input data-f="u" data-only="proposal" type="url" inputmode="url" placeholder="Link (optional), e.g. a reference or live example: https://…" value="${esc(it.u || '')}" aria-label="Link">
+          <div class="item-tools" data-only="proposal">
+            <label class="check"><input type="checkbox" data-f="v"${it.v ? ' checked' : ''}> Visual page <small>full-page visual, no text or price</small></label>
+            <span class="mv"><button type="button" data-mv="${i}:-1" aria-label="Move up" title="Move up"${i ? '' : ' disabled'}>↑</button><button type="button" data-mv="${i}:1" aria-label="Move down" title="Move down"${i < state.items.length - 1 ? '' : ' disabled'}>↓</button></span>
+          </div>
+          ${it.v ? `<div class="refs" data-only="proposal">
+            <div class="refs-h"><b>References on this page</b><span class="gl">${[['', 'Mosaic'], ['grid', 'Grid'], ['strip', 'Strip'], ['bento', 'Bento']].map(([v, n]) => `<button type="button" data-gl="${i}:${v}" class="${(it.gl || '') === v ? 'on' : ''}">${n}</button>`).join('')}</span></div>
+            <input data-f="x" placeholder="Caption for the first visual" value="${esc((it.x || '').split('\n')[0])}" aria-label="Caption for the first visual">
+            <input data-f="t" placeholder="Tags for the first visual, e.g. Advert, 3D" value="${esc(it.t || '')}" aria-label="Tags for the first visual">
+            ${(it.g || []).map((r, k) => `<div class="ref-row">
+              <button type="button" class="g-thumb" data-pick="${i}:${k}" aria-label="Choose visual for reference ${k + 2}">${mediaHTML(r.m && r.m.k !== 'none' ? r.m : { k: 'scene', v: 'orbit' }, { lite: true, prefix: `r${i}${k}` })}</button>
+              <span><input data-g="${k}" data-gf="c" placeholder="Caption" value="${esc(r.c || '')}" aria-label="Caption"><input data-g="${k}" data-gf="t" placeholder="Tags, e.g. Website, E-commerce" value="${esc(r.t || '')}" aria-label="Tags"><input data-g="${k}" data-gf="u" type="url" placeholder="Link: https://…" value="${esc(r.u || '')}" aria-label="Link"></span>
+              <button type="button" class="it-x" data-del-ref="${i}:${k}" aria-label="Remove reference">×</button>
+            </div>`).join('')}
+            ${(it.g || []).length < 8 ? `<button type="button" class="add-ref" data-add-ref="${i}">+ Add reference</button>` : ''}
+          </div>` : ''}
         </div>
       </div>
       <button type="button" class="more-toggle" data-only="classic" data-toggle="${i}">${open ? '− Hide details' : '+ Timeline & details'}</button>
@@ -838,15 +1008,20 @@
   let pickTarget = null, stockResults = [], stockType = 'videos', linkParsed = null;
   const dlg = () => $('#mediaDlg');
 
-  function targetMedia() { return pickTarget === 'banner' ? state.banner : state.items[pickTarget]?.m; }
+  const refOf = t => { if (typeof t !== 'string' || !t.includes(':')) return null; const [i, k] = t.split(':').map(Number); return state.items[i]?.g?.[k] || null; };
+  function targetMedia() { const r = refOf(pickTarget); return r ? r.m : pickTarget === 'banner' ? state.banner : state.items[pickTarget]?.m; }
   function targetCtx() {
+    const r = refOf(pickTarget);
+    if (r) return { title: r.c || '', text: '' };
     if (pickTarget === 'banner') return { title: '', text: '' };
     const it = state.items[pickTarget];
     return { title: it.d, text: it.x };
   }
   /* target: a section index or 'banner' */
-  const getMedia = t => (t === 'banner' ? state.banner : state.items[t]?.m);
+  const getMedia = t => (refOf(t) ? refOf(t).m : t === 'banner' ? state.banner : state.items[t]?.m);
   function setMediaFor(target, m) {
+    const r = refOf(target);
+    if (r) { r.m = m; renderItems(); update(); return; }
     if (target === 'banner') state.banner = m;
     else if (state.items[target]) state.items[target].m = m;
     else return;
@@ -877,8 +1052,9 @@
 
   function openPicker(target) {
     pickTarget = target;
-    const it = target === 'banner' ? null : state.items[target];
-    $('#mdlgFor').textContent = target === 'banner' ? 'For the closing banner under your total' : `For “${it.d || 'Untitled section'}”`;
+    const ref = refOf(target);
+    const it = target === 'banner' || ref ? null : state.items[target];
+    $('#mdlgFor').textContent = ref ? `For reference “${ref.c || 'untitled'}”` : target === 'banner' ? 'For the closing banner under your total' : `For “${it.d || 'Untitled section'}”`;
     renderSceneGrid();
     // photo-friendly search words per kind of section ("Website redesign" → "laptop desk")
     const SQ = { browser: 'laptop desk', code: 'programming laptop', devices: 'smartphone laptop', print: 'printed brochure', brand: 'design studio',
@@ -1562,8 +1738,16 @@
     save(); renderTotals();
   }
   /* "+ Add another section" on the page: adds it and puts the cursor in its title, right there */
-  function addSectionOnPage() {
-    state.items.push({ d: state.layout === 'proposal' ? 'New section' : 'New item', q: 1, r: 0, t: '', x: '', m: null });
+  function addRef(i) {
+    const it = state.items[i];
+    if (!it || (it.g || []).length >= 8) return;
+    (it.g ||= []).push({ m: null, u: '', c: '' });
+    renderItems(); save(); preview(true);
+    $(`.item[data-i="${i}"] .ref-row:last-of-type [data-gf="c"]`)?.focus();
+  }
+  function addSectionOnPage(visual) {
+    state.items.push(visual ? { d: '', q: 1, r: 0, t: '', x: '', m: null, v: true }
+      : { d: state.layout === 'proposal' ? 'New section' : 'New item', q: 1, r: 0, t: '', x: '', m: null });
     const i = state.items.length - 1;
     openItems.add(i);
     renderItems(i); save(); renderTotals();
@@ -1625,6 +1809,9 @@
     });
     host.addEventListener('click', e => {
       if (e.target.closest('[data-add-section]')) { addSectionOnPage(); return; }
+      if (e.target.closest('[data-add-visual]')) { addSectionOnPage(true); return; }
+      const ar = e.target.closest('[data-add-ref]');
+      if (ar) { addRef(+ar.dataset.addRef); return; }
       const b = e.target.closest('[data-add-point]');
       if (!b) return;
       const path = b.dataset.addPoint, it = state.items[+path.split('.')[1]];
@@ -1810,10 +1997,16 @@
         return update();
       }
       const item = el.closest('.item');
+      if (item && el.dataset.gf) {
+        const r = state.items[+item.dataset.i]?.g?.[+el.dataset.g];
+        if (r) r[el.dataset.gf] = el.value;
+        return update();
+      }
       if (item && el.dataset.f) {
         const i = +item.dataset.i, it = state.items[i], f = el.dataset.f;
-        it[f] = f === 'q' || f === 'r' ? Math.max(0, parseFloat(el.value) || 0) : el.value;
-        if (f === 'q' || f === 'r') $('.it-a', item).textContent = money(it.q * it.r, state.currency);
+        if (f === 'v') { if (el.checked) it.v = true; else delete it.v; renderItems(); save(); renderTotals(); preview(true); return; }
+        it[f] = f === 'q' || f === 'r' || f === 'r2' ? Math.max(0, parseFloat(el.value) || 0) : el.value;
+        if (f === 'q' || f === 'r' || f === 'r2') $('.it-a', item).textContent = priceText(it, state.currency);
         if ((f === 'd' || f === 'x') && (!it.m || it.m.k === 'scene')) {
           const btn = $('.m-thumb', item);
           if (btn && btn.dataset.sid !== sceneFor(it.m, { title: it.d, text: it.x })) refreshThumb(i);
@@ -1821,6 +2014,24 @@
         return update();
       }
       if (el.id === 'customColor') { state.color = el.value; applyAccent(); update(); }
+    });
+    $('#noTotal').addEventListener('change', e => { state.noTotal = e.target.checked; update(); });
+    $('#looks').addEventListener('click', e => {
+      const b = e.target.closest('.look');
+      if (!b) return;
+      state.look = b.dataset.look;
+      $$('#looks .look').forEach(x => x.classList.toggle('on', x === b));
+      save(); preview(true);
+    });
+    $('#modes').addEventListener('click', e => {
+      const b = e.target.closest('[data-mode]');
+      if (!b) return;
+      if (b.dataset.mode === 'simple' && (state.look || state.noTotal || state.items.some(it => it.v || it.u || it.r2 > it.r || it.g))) {
+        toast('This document uses Custom features (look, links, visual pages, ranges or no total), so it stays in Custom.', 5000);
+        return;
+      }
+      store.set('slip:mode', b.dataset.mode);
+      renderLayout();
     });
     form.addEventListener('change', e => { if (e.target.dataset.bind === 'currency') { renderItems(); update(); } });
 
@@ -1833,7 +2044,7 @@
     });
     $('#items').addEventListener('click', e => {
       const pick = e.target.closest('[data-pick]');
-      if (pick) return openPicker(+pick.dataset.pick);
+      if (pick) return openPicker(pick.dataset.pick.includes(':') ? pick.dataset.pick : +pick.dataset.pick);
       const aiB = e.target.closest('[data-ai]');
       if (aiB) return quickSection(+aiB.dataset.ai, aiB);
       const tg = e.target.closest('[data-toggle]');
@@ -1860,6 +2071,25 @@
     });
     $('#bannerThumb').addEventListener('click', () => openPicker('banner'));
     $('#addItem').addEventListener('click', () => addItem());
+    $('#items').addEventListener('click', e => {
+      const ar = e.target.closest('[data-add-ref]');
+      if (ar) return addRef(+ar.dataset.addRef);
+      const dr = e.target.closest('[data-del-ref]'), gl = e.target.closest('[data-gl]');
+      if (dr || gl) {
+        const [i, v] = (dr ? dr.dataset.delRef : gl.dataset.gl).split(':'), it = state.items[+i];
+        if (!it) return;
+        if (dr) { it.g.splice(+v, 1); if (!it.g.length) delete it.g; }
+        else if (v) it.gl = v; else delete it.gl;
+        renderItems(); save(); preview(true);
+        return;
+      }
+      const b = e.target.closest('[data-mv]');
+      if (!b) return;
+      const [i, by] = b.dataset.mv.split(':').map(Number), j = i + by;
+      if (j < 0 || j >= state.items.length) return;
+      [state.items[i], state.items[j]] = [state.items[j], state.items[i]];
+      renderItems(j); save(); preview(true);
+    });
     $('#addItemTop').addEventListener('click', () => { addItem(); $('.item:last-child')?.scrollIntoView({ block: 'center', behavior: 'smooth' }); });
 
     $('#layouts').addEventListener('click', e => {
@@ -1966,7 +2196,7 @@
     const who = d.to.contact || d.to.name || '';
     const subject = d.type === 'quote' ? `Accepted: ${kind} ${d.number}` : `Re: Invoice ${d.number}`;
     const body = d.type === 'quote'
-      ? `Hi ${d.from.name},\n\nWe're happy to go ahead with ${kind.toLowerCase()} ${d.number} for ${money(t.total, d.currency)}.\n\nThanks,\n${who}`
+      ? `Hi ${d.from.name},\n\nWe're happy to go ahead with ${kind.toLowerCase()} ${d.number}${d.noTotal ? '' : ` for ${totalText(t, d.currency)}`}.\n\nThanks,\n${who}`
       : `Hi ${d.from.name},\n\nAbout invoice ${d.number} (${money(t.total, d.currency)}):\n\n\nThanks,\n${who}`;
     accept.textContent = d.type === 'quote' ? `Accept ${kind.toLowerCase()}` : 'Reply';
     accept.classList.remove('done');
