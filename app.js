@@ -2675,6 +2675,10 @@
       let k = ''; try { k = decodeURIComponent(m[1]); } catch { /* ignore */ }
       history.replaceState(null, '', '#docs');
       store.set('slip:fx', fxKeyOk(k) ? k : '');
+      if (fxKeyOk(k)) listDocs().forEach(mt => {              // switch it on in the owner's existing proposals, so one link does the whole job
+        const dd = loadDoc(mt.id);
+        if (dd && dd.layout === 'proposal' && (dd.from.name || '').trim().toLowerCase() === FX_OWNER && !fxAllowed(dd)) { dd.fx = 'ryuu'; dd.fxk = k; saveDoc(mt.id, dd); }
+      });
       location.reload(); return;                              // start clean so every open editor picks the change up
     }
     if ((m = /^#import=(.+)$/.exec(h))) {
