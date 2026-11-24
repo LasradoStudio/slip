@@ -599,8 +599,8 @@ code { font-family: var(--mono); font-size: .92em; padding: 1px 5px; border-radi
 .add-ref, .pp-add-ref { padding: 8px 12px; border: 1.5px dashed var(--line-2); border-radius: 10px; background: none; font-size: 13px; font-weight: 600; color: var(--ink); cursor: pointer; }
 .add-ref:hover, .pp-add-ref:hover { border-color: var(--accent); }
 /* sits beside the List view tab, clear of the page title */
-.pp-add-ref { position: absolute; z-index: 5; top: 7px; right: 138px; padding: 7px 12px; background: #fff; white-space: nowrap; }
-#preview .pp-vis-head { padding-right: 290px; }
+.pp-add-ref { position: absolute; z-index: 5; top: 14px; right: 18px; padding: 7px 12px; background: #fff; white-space: nowrap; }
+#preview .pp-vis-head { padding-right: 160px; }
 @media print { .pp-add-ref { display: none !important; } }
 .item-tools { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .item-tools .check { margin: 0; font-size: 12.5px; white-space: normal; }

@@ -449,8 +449,8 @@
       return `
   <section class="pp-page pp-sec pp-visual has-refs" data-item="${ix}">
     <div class="pp-vis-head rv"><span class="pp-vis-title"${ed(`items.${ix}.d`, 'Add a title')}>${esc(it.d)}</span><span class="pp-idx">${pad(n)} references</span></div>
-    <div class="pp-vis-corner"><button type="button" data-vis-toggle aria-pressed="false"><span class="vs-a">☰ List view</span><span class="vs-b">▦ Collage view</span></button></div>
     <div class="cg cg-${lay} rv" style="--d:1;--pc:${n <= 3 ? n : n === 4 ? 2 : n <= 6 ? 3 : 4}">${body}</div>
+    <div class="pp-vis-foot rv" style="--d:2" role="group" aria-label="View"><button type="button" data-vis-view="collage" aria-pressed="true" aria-label="Collage view" title="Collage view"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><rect x="2.5" y="2.5" width="6" height="6" rx="1.2"/><rect x="11.5" y="2.5" width="6" height="6" rx="1.2"/><rect x="2.5" y="11.5" width="6" height="6" rx="1.2"/><rect x="11.5" y="11.5" width="6" height="6" rx="1.2"/></svg></button><button type="button" data-vis-view="list" aria-pressed="false" aria-label="List view" title="List view"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14"/></svg></button></div>
     ${lay === 'bento' ? '<button type="button" class="cg-nav prev" data-cg-nav="-1" aria-label="Browse left">‹</button><button type="button" class="cg-nav next" data-cg-nav="1" aria-label="Browse right">›</button>' : ''}
     ${on && n < 9 ? `<button type="button" class="pp-add-ref" data-add-ref="${ix}">+ Add reference</button>` : ''}
   </section>`;
@@ -661,10 +661,10 @@
       if (el) { const s = bState(el); s.to = Math.max(0, Math.min(bMax(el), (s.to ?? s.x) + +nav.dataset.cgNav * el.clientWidth * .6)); holdBento(el); }
       return;
     }
-    const vt = e.target.closest('[data-vis-toggle]');
+    const vt = e.target.closest('[data-vis-view]');
     if (vt) {
-      const sec = vt.closest('.pp-visual');
-      if (sec) vt.setAttribute('aria-pressed', String(sec.classList.toggle('is-list')));
+      const sec = vt.closest('.pp-visual'), list = vt.dataset.visView === 'list';
+      if (sec) { sec.classList.toggle('is-list', list); sec.querySelectorAll('[data-vis-view]').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.visView === 'list') === list))); }
       return;
     }
     const b = e.target.closest('[data-goto]');

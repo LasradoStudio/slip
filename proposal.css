@@ -164,17 +164,15 @@
 .cg-nav:hover { transform: scale(1.1); }
 
 /* the switch sits on the page's bottom edge, half outside it */
-.pp-vis-head { justify-content: flex-start; padding-right: 150px; }
-/* a white tab let into the page's top-right corner, with concave ("bevelled") joins, holding the view button */
-.pp-vis-corner { --r: 16px; position: absolute; z-index: 6; top: 0; right: 0; padding: 0 0 9px 9px; background: #fff; border-bottom-left-radius: var(--r); }
-.pp-vis-corner::before, .pp-vis-corner::after { content: ""; position: absolute; width: var(--r); height: var(--r); background: radial-gradient(circle at 0 100%, transparent calc(var(--r) - .5px), #fff var(--r)); }
-.pp-vis-corner::before { top: 0; left: calc(var(--r) * -1); }
-.pp-vis-corner::after { right: 0; bottom: calc(var(--r) * -1); }
-.pp-vis-corner button { display: block; padding: 10px 16px; border: 0; border-radius: 11px; background: var(--ink); color: #fff; font: 500 12px/1 var(--mono); letter-spacing: .02em; white-space: nowrap; cursor: pointer; transition: background .2s; }
-.pp-vis-corner button:hover { background: var(--accent); color: var(--on-accent); }
-.pp-vis-corner .vs-b, .pp-vis-corner [aria-pressed="true"] .vs-a { display: none; }
-.pp-vis-corner [aria-pressed="true"] .vs-b { display: inline; }
-.lk-editorial .pp-vis-corner button { border-radius: 5px; }
+.pp-vis-head { justify-content: flex-start; }
+/* two quiet icons under the collage switch between the collage and a readable list */
+.pp-visual.has-refs { grid-template-rows: auto 1fr auto; }
+.pp-vis-foot { display: flex; justify-content: flex-end; gap: 2px; padding: 0 2px; }
+.pp-vis-foot button { display: grid; place-items: center; width: 34px; height: 30px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--muted); opacity: .55; cursor: pointer; transition: opacity .2s, color .2s, background .2s; }
+.pp-vis-foot button svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.pp-vis-foot button:hover { opacity: 1; background: rgba(0,0,0,.05); }
+.pp-vis-foot button[aria-pressed="true"] { color: var(--ink); opacity: 1; }
+.lk-editorial .pp-vis-foot button[aria-pressed="true"] { color: var(--accent-ink); }
 
 /* list view: the same references as readable cards (picture, number, caption, tags, link) */
 .pp-visual.is-list { min-height: 0; }
@@ -607,8 +605,8 @@ html.lite .cg-t > .media { transition: none; }
   .cg-bento { display: grid; grid-template-columns: repeat(var(--pc, 3), 1fr); grid-auto-rows: 1fr; gap: 8px; overflow: visible; }
   .cg-bento .cg-track, .cg-bento .cg-col { display: contents; }
   .cg-bento .cg-t { animation: none; }
-  .cg-nav, .pp-vis-corner, .cb-hint { display: none !important; }
-  .pp-vis-head { padding-right: 6px; }
+  .cg-nav, .pp-vis-foot, .cb-hint { display: none !important; }
+  .pp-visual.has-refs { grid-template-rows: auto 1fr; }
   .scene * { animation-delay: -3s !important; animation-play-state: paused !important; }
   /* noise overlays and big blurs get rasterised at full page size, which makes PDFs enormous */
   .scene::after, .pp-page.grain::after { display: none; }
