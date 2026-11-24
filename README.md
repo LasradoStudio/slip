@@ -212,6 +212,8 @@ npx serve .
 
 ## Deploy (free)
 
+**After changing any file:** bump the `?v=` number on the stylesheet and script tags in `index.html` (all seven share one value). Browsers keep the old files for about ten minutes otherwise, so visitors would not see the update on a normal reload.
+
 - **GitHub Pages:** push to a repo, then go to Settings → Pages → *Deploy from a branch* → `main` / root.
 - **Netlify:** drag the folder onto <https://app.netlify.com/drop>.
 - **Vercel:** run `npx vercel` in the folder.
