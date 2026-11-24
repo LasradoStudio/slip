@@ -145,6 +145,7 @@
       issued: isoOr(r.issued), due: isoOr(r.due),
       currency: CURRENCIES.some(c => c[0] === r.currency) ? r.currency : 'USD',
       tax: num(r.tax, 0, 100), discount: num(r.discount, 0, 100),
+      fxk: str(r.fxk, 64),                               // private key for the page effect; checked against the owner's name below
       fx: r.fx === 'ryuu' ? 'ryuu' : '',                 // page effect: the Ryuu dragon flies through the cover and the thank-you page (see fx.js)
       look: r.look === 'editorial' ? 'editorial' : '',   // proposal styling: '' = soft (original), 'editorial' = paper, ink and accent-coloured mono numbers
       noTotal: r.noTotal === true,   // separate services: no combined total, and unpriced sections show no price
@@ -175,6 +176,20 @@
   const isRange = it => it.r2 > it.r;
   const trim00 = s => s.replace(/[.,]00(?=\D*$)/, '');
   const priceText = (it, cur) => (isRange(it) ? `${trim00(money(it.q * it.r, cur))} – ${trim00(money(it.q * it.r2, cur))}` : money(it.q * it.r, cur));
+  /* The Ryuu page effect is the site owner's own artwork. It only draws on a document that carries his private key AND
+     is in his name, so copying the key out of one of his links does not let anyone use it on their own documents.
+     Only a hash of the key is stored here. */
+  const cyrb53 = (s, seed = 7) => {
+    let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+    for (let i = 0, ch; i < s.length; i++) { ch = s.charCodeAt(i); h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677); }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+  };
+  const FX_OWNER = 'neil lasrado', FX_HASH = 3275976743138245;
+  const fxKeyOk = k => typeof k === 'string' && k.length > 8 && cyrb53(k + '|' + FX_OWNER) === FX_HASH;
+  const fxAllowed = d => d.fx === 'ryuu' && (d.from.name || '').trim().toLowerCase() === FX_OWNER && fxKeyOk(d.fxk);
+
   function totals(d) {
     const sub = d.items.reduce((s, it) => s + it.q * it.r, 0);
     const disc = sub * d.discount / 100;
@@ -392,7 +407,7 @@
     const linkHTML = (it, cls = '') => { const u = safeLink(it.u); return u ? `<a class="pp-link ${cls}" href="${esc(u)}" target="_blank" rel="noopener noreferrer"><span>${esc(linkHost(u))}</span>${LINK}</a>` : ''; };
     const showPrice = it => on || !noTot || priced(it);
     /* page effect layers: one under the page's text, one over it (drawn by fx.js from a single video) */
-    const fxOn = d.fx && !ctx.lite;
+    const fxOn = fxAllowed(d) && !ctx.lite;
     const fxBack = k => (fxOn ? `<div class="fx" data-fx="${k}" aria-hidden="true"><video muted loop playsinline preload="auto" src="media/${d.fx}-${k}.mp4"></video><canvas class="fx-b"></canvas></div>` : '');
     const fxFront = fxOn ? '<canvas class="fx-f" aria-hidden="true"></canvas>' : '';
     const bannerHTML = d.banner && d.banner.k === 'none' ? '' : mediaHTML(d.banner || { k: 'scene', v: 'orbit' }, mctx({}));
@@ -907,7 +922,7 @@
     $$('#looks .look').forEach(b => b.classList.toggle('on', b.dataset.look === (state.look || '')));
     /* Simple = the fast draft (brand, sections, prices). Custom adds looks, links, visual pages, ranges and no-total.
        A document that already uses any of those always opens in Custom. */
-    $('#fxWrap').hidden = !store.get('slip:fx', false) || state.layout !== 'proposal';
+    $('#fxWrap').hidden = !fxKeyOk(store.get('slip:fx', '')) || state.layout !== 'proposal';
     $('#fxOn').checked = !!state.fx;
     const usesCustom = !!(state.fx || state.look || state.noTotal || state.items.some(it => it.v || it.u || it.r2 > it.r || it.g));
     const mode = usesCustom ? 'custom' : store.get('slip:mode', 'simple');
@@ -2063,7 +2078,7 @@
       $$('#looks .look').forEach(x => x.classList.toggle('on', x === b));
       save(); preview(true);
     });
-    $('#fxOn').addEventListener('change', e => { state.fx = e.target.checked ? 'ryuu' : ''; save(); preview(true); });
+    $('#fxOn').addEventListener('change', e => { state.fx = e.target.checked ? 'ryuu' : ''; state.fxk = e.target.checked ? store.get('slip:fx', '') : ''; save(); preview(true); });
     $('#modes').addEventListener('click', e => {
       const b = e.target.closest('[data-mode]');
       if (!b) return;
@@ -2655,10 +2670,12 @@
     if ((m = /^#q=(.+)$/.exec(h))) { show('viewer'); showViewer(m[1]); return; }
     /* #import=… : the same code as a share link, but it lands in this browser's documents as an editable copy.
        For moving a document into your own Slip with one click (another device, or a draft someone prepared for you). */
-    /* #fx=on / #fx=off : shows or hides the private page-effect option in this browser's editor. Not linked from anywhere. */
-    if (h === '#fx=on' || h === '#fx=off') {
-      store.set('slip:fx', h === '#fx=on'); history.replaceState(null, '', '#docs');
-      setTimeout(() => toast(h === '#fx=on' ? 'Page effects unlocked. Open a proposal: the option is in the Start card.' : 'Page effects hidden.', 5000), 300);
+    /* #fx=<private key> : unlocks the owner's page-effect option in this browser's editor. Anything else locks it. */
+    if ((m = /^#fx=(.+)$/.exec(h))) {
+      let k = ''; try { k = decodeURIComponent(m[1]); } catch { /* ignore */ }
+      history.replaceState(null, '', '#docs');
+      store.set('slip:fx', fxKeyOk(k) ? k : '');
+      location.reload(); return;                              // start clean so every open editor picks the change up
     }
     if ((m = /^#import=(.+)$/.exec(h))) {
       const code = m[1];
