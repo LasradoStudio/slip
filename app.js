@@ -407,6 +407,8 @@
     const linkHTML = (it, cls = '') => { const u = safeLink(it.u); return u ? `<a class="pp-link ${cls}" href="${esc(u)}" target="_blank" rel="noopener noreferrer"><span>${esc(linkHost(u))}</span>${LINK}</a>` : ''; };
     const showPrice = it => on || !noTot || priced(it);
     /* page effect layers: one under the page's text, one over it (drawn by fx.js from a single video) */
+    const EXPAND = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const expandBtn = m => (m && ['img', 'vid', 'yt', 'vimeo'].includes(m.k) && !ctx.lite ? `<button type="button" class="vx" data-expand aria-label="Expand" title="Expand">${EXPAND}</button>` : '');
     const fxOn = fxAllowed(d) && !ctx.lite;
     const fxBack = k => (fxOn ? `<div class="fx" data-fx="${k}" aria-hidden="true"><video muted loop playsinline preload="auto" src="media/${d.fx}-${k}.mp4"></video><canvas class="fx-b"></canvas></div>` : '');
     const fxFront = fxOn ? '<canvas class="fx-f" aria-hidden="true"></canvas>' : '';
@@ -455,7 +457,7 @@
       const tile = (t, k, span = 1, dup = false) => {
         const u = safeLink(t.u), tag = u && !on ? 'a' : 'div';
         const m = t.m && t.m.k !== 'none' ? t.m : (k ? { k: 'scene', v: 'orbit' } : null);
-        return `<${tag} class="cg-t${k || dup ? '' : ' pp-media'}"${span > 1 ? ` style="grid-column:span ${span}"` : ''}${tag === 'a' ? ` href="${esc(u)}" target="_blank" rel="noopener noreferrer"${dup ? ' tabindex="-1"' : ''}` : ''}>${mediaHTML(m, mctx({ title: t.c || it.d, text: '' }))}<span class="cg-cap">${tagsHTML(t.t)}<i>${pad(k + 1)}</i>${t.c ? `<b>${esc(t.c)}</b>` : ''}${u ? `<em>${esc(linkHost(u))}${LINK}</em>` : ''}</span></${tag}>`;
+        return `<${tag} class="cg-t${k || dup ? '' : ' pp-media'}"${span > 1 ? ` style="grid-column:span ${span}"` : ''}${tag === 'a' ? ` href="${esc(u)}" target="_blank" rel="noopener noreferrer"${dup ? ' tabindex="-1"' : ''}` : ''}>${mediaHTML(m, mctx({ title: t.c || it.d, text: '' }))}${dup ? '' : expandBtn(t.m)}<span class="cg-cap">${tagsHTML(t.t)}<i>${pad(k + 1)}</i>${t.c ? `<b>${esc(t.c)}</b>` : ''}${u ? `<em>${esc(linkHost(u))}${LINK}</em>` : ''}</span></${tag}>`;
       };
       /* a grid of `rest` tiles in `c` columns; the last tile stretches over any empty cells */
       const gridOf = (list, from, c) => `<div class="cg-rest" style="--c:${c}">${list.map((t, j) => tile(t, from + j, j === list.length - 1 ? 1 + (c - list.length % c) % c : 1)).join('')}</div>`;
@@ -483,6 +485,7 @@
     if (it.v) return `
   <section class="pp-page pp-sec pp-visual" data-item="${ix}">
     <div class="pp-media rv">${mediaHTML(it.m && it.m.k !== 'none' ? it.m : { k: 'scene', v: 'orbit' }, mctx({ title: it.d, text: it.x }))}</div>
+    ${expandBtn(it.m)}
     ${it.d.trim() || safeLink(it.u) || on ? `<div class="pp-vis-cap rv" style="--d:2"><span class="pp-vis-title"${ed(`items.${ix}.d`, 'Add a caption')}>${esc(it.d)}</span>${linkHTML(it)}</div>` : ''}
     ${on ? `<button type="button" class="pp-add-ref" data-add-ref="${ix}">+ Add reference</button>` : ''}
   </section>`;
@@ -697,7 +700,35 @@
     const s = bState(el); s.to = null; s.x += e.deltaX; holdBento(el);
   }, { passive: false });
 
+  /* Expanded view: the whole picture or video, uncropped, over the page. Videos get controls and sound. */
+  function openExpanded(btn) {
+    const box = btn.closest('.cg-t') || btn.closest('.pp-visual');
+    const media = box && box.querySelector('.media');
+    if (!media) return;
+    const img = media.querySelector('img.m-fill:not(.m-print)'), vid = media.querySelector('video.m-fill'), fr = media.querySelector('iframe.m-frame');
+    let inner = '';
+    if (vid && vid.src) inner = `<video src="${esc(vid.currentSrc || vid.src)}" controls autoplay loop playsinline></video>`;
+    else if (fr) {
+      const yt = /embed\/([\w-]{6,15})/.exec(fr.src), vm = /vimeo\.com\/video\/(\d+)/.exec(fr.src);
+      const src = yt ? `https://www.youtube-nocookie.com/embed/${yt[1]}?autoplay=1&rel=0&playsinline=1` : vm ? `https://player.vimeo.com/video/${vm[1]}?autoplay=1` : '';
+      if (src) inner = `<iframe src="${src}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen title="Video"></iframe>`;
+    } else if (img && img.src) inner = `<img src="${esc(img.currentSrc || img.src)}" alt="">`;
+    if (!inner) return;
+    const cap = box.querySelector('.cg-cap b, .pp-vis-title');
+    const lb = document.createElement('div');
+    lb.className = 'lightbox'; lb.setAttribute('role', 'dialog'); lb.setAttribute('aria-modal', 'true'); lb.setAttribute('aria-label', 'Expanded view');
+    lb.innerHTML = `<button type="button" class="lb-x" aria-label="Close">×</button><div class="lb-body">${inner}</div>${cap && cap.textContent.trim() ? `<p class="lb-cap">${esc(cap.textContent.trim())}</p>` : ''}`;
+    const close = () => { lb.remove(); removeEventListener('keydown', onKey); document.documentElement.classList.remove('lb-open'); btn.focus?.(); };
+    const onKey = ev => { if (ev.key === 'Escape') close(); };
+    lb.addEventListener('click', ev => { if (ev.target === lb || ev.target.closest('.lb-x')) close(); });
+    addEventListener('keydown', onKey);
+    document.documentElement.classList.add('lb-open');
+    document.body.appendChild(lb); lb.querySelector('.lb-x').focus();
+  }
+
   document.addEventListener('click', e => {
+    const ex = e.target.closest('[data-expand]');
+    if (ex) { e.preventDefault(); e.stopPropagation(); openExpanded(ex); return; }
     const nav = e.target.closest('[data-cg-nav]');
     if (nav) {
       const el = nav.closest('.pp-visual')?.querySelector('.cg-bento');
