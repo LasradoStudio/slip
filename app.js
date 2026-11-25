@@ -556,6 +556,7 @@
     if (a.nodeType !== b.nodeType || a.nodeName !== b.nodeName) { a.replaceWith(b); return; }
     if (a.nodeType === 3 || a.nodeType === 8) { if (a.data !== b.data) a.data = b.data; return; }
     if (a.nodeType !== 1) return;
+    if (a.nodeName === 'CANVAS') return;                        // a live drawing surface: leave it exactly as it is
     for (const { name } of [...a.attributes]) if (!b.hasAttribute(name)) a.removeAttribute(name);
     for (const { name, value } of [...b.attributes]) if (a.getAttribute(name) !== value) a.setAttribute(name, value);
     if (a.nodeName === 'IFRAME' || a.nodeName === 'VIDEO') return;
@@ -1839,7 +1840,7 @@
     const it = state.items[i];
     if (!it || (it.g || []).length >= 8) return;
     (it.g ||= []).push({ m: null, u: '', c: '' });
-    renderItems(); save(); preview(true);
+    renderItems(); save(); preview(false);
     $(`.item[data-i="${i}"] .ref-row:last-of-type [data-gf="c"]`)?.focus();
   }
   function addSectionOnPage(visual) {
@@ -2102,7 +2103,7 @@
       if (item && el.dataset.f) {
         const i = +item.dataset.i, it = state.items[i], f = el.dataset.f;
         if (f === 'arrows') { if (el.checked) delete it.na; else it.na = true; save(); preview(false); return; }
-        if (f === 'v') { if (el.checked) it.v = true; else delete it.v; renderItems(); save(); renderTotals(); preview(true); return; }
+        if (f === 'v') { if (el.checked) it.v = true; else delete it.v; renderItems(); save(); renderTotals(); preview(false); return; }
         it[f] = f === 'q' || f === 'r' || f === 'r2' ? Math.max(0, parseFloat(el.value) || 0) : el.value;
         if (f === 'q' || f === 'r' || f === 'r2') $('.it-a', item).textContent = priceText(it, state.currency);
         if ((f === 'd' || f === 'x') && (!it.m || it.m.k === 'scene')) {
@@ -2119,9 +2120,9 @@
       if (!b) return;
       state.look = b.dataset.look;
       $$('#looks .look').forEach(x => x.classList.toggle('on', x === b));
-      save(); preview(true);
+      save(); preview(false);
     });
-    $('#fxOn').addEventListener('change', e => { state.fx = e.target.checked ? 'ryuu' : ''; state.fxk = e.target.checked ? store.get('slip:fx', '') : ''; save(); preview(true); });
+    $('#fxOn').addEventListener('change', e => { state.fx = e.target.checked ? 'ryuu' : ''; state.fxk = e.target.checked ? store.get('slip:fx', '') : ''; save(); preview(false); });
     $('#modes').addEventListener('click', e => {
       const b = e.target.closest('[data-mode]');
       if (!b) return;
@@ -2179,7 +2180,7 @@
         if (!it) return;
         if (dr) { it.g.splice(+v, 1); if (!it.g.length) delete it.g; }
         else if (v) it.gl = v; else delete it.gl;
-        renderItems(); save(); preview(true);
+        renderItems(); save(); preview(false);
         return;
       }
       const b = e.target.closest('[data-mv]');
@@ -2187,7 +2188,7 @@
       const [i, by] = b.dataset.mv.split(':').map(Number), j = i + by;
       if (j < 0 || j >= state.items.length) return;
       [state.items[i], state.items[j]] = [state.items[j], state.items[i]];
-      renderItems(j); save(); preview(true);
+      renderItems(j); save(); preview(false);
     });
     $('#addItemTop').addEventListener('click', () => { addItem(); $('.item:last-child')?.scrollIntoView({ block: 'center', behavior: 'smooth' }); });
 

@@ -46,8 +46,9 @@
     };
   }
 
+  const started = new WeakSet();     // not an attribute: the editor's page diff would strip it and start everything twice
   function start(wrap) {
-    wrap.dataset.on = '1';
+    started.add(wrap);
     const video = wrap.querySelector('video'), back = wrap.querySelector('.fx-b'), page = wrap.closest('.pp-page');
     const front = page && page.querySelector('.fx-f');
     if (!video || !back || !front) return;
@@ -72,6 +73,6 @@
     tick();
   }
 
-  const scan = () => document.querySelectorAll('.fx[data-fx]:not([data-on])').forEach(start);
+  const scan = () => document.querySelectorAll('.fx[data-fx]').forEach(w => { if (!started.has(w)) start(w); });
   setInterval(scan, 700); addEventListener('load', scan);
 })();
