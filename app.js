@@ -261,6 +261,8 @@
     let m;
     if ((m = u.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{6,15})/i))) return { k: 'yt', v: m[1] };
     if ((m = u.match(/vimeo\.com\/(?:video\/)?(\d{4,12})/i))) return { k: 'vimeo', v: m[1] };
+    if ((m = u.match(/^https:\/\/([\w.-]+)\/(?:v|f|p)\/([A-Za-z0-9]{6,32})(?:[/?#.]|$)/i)) && (window.SlipConfig?.mediaLinkHosts || []).includes(m[1].toLowerCase()))
+      return { k: 'vid', v: `https://${m[1].toLowerCase()}/f/${m[2]}`, p: `https://${m[1].toLowerCase()}/p/${m[2]}`, own: true };
     if ((m = u.match(/framerate\.tv\/(?:watch|embed)\/([\w-]{6,40})/i))) return { k: 'fr', v: m[1] };
     if (/framerate\.tv/i.test(u)) return { err: 'Open the video on FrameRate and paste its page link. It looks like framerate.tv/watch/…' };
     // Pexels photo page → direct image (no key needed)
@@ -1272,7 +1274,7 @@
     if (p.err) { msg.textContent = p.err; msg.className = 'link-msg bad'; $('#linkPrev').innerHTML = ''; return; }
     linkParsed = safeMedia(p);
     msg.className = 'link-msg';
-    msg.textContent = p.c === 'Photo · Pexels' ? 'Pexels photo, found from the page link'
+    msg.textContent = p.own ? 'From your media link. Videos play muted on a loop.' : p.c === 'Photo · Pexels' ? 'Pexels photo, found from the page link'
       : { yt: 'YouTube video, plays muted on a loop', vimeo: 'Vimeo video, plays muted on a loop', vid: 'Video file', img: 'Image', fr: 'FrameRate video, plays muted by itself', gd: 'Google Drive file. Set sharing to “Anyone with the link”. The page shows its preview picture; Expand opens it in full.' }[p.k];
     $('#linkPrev').innerHTML = mediaHTML(linkParsed, { prefix: 'k' });
     $('#linkUse').disabled = !linkParsed;
@@ -1281,6 +1283,14 @@
     const shown = linkParsed && linkParsed.v;
     if (el) el.addEventListener('error', () => {
       if (!linkParsed || linkParsed.v !== shown) return;   // user already pasted something else
+      if (p.own && linkParsed.k === 'vid') {                // your media link turned out to be a picture, not a video
+        linkParsed = safeMedia({ k: 'img', v: shown });
+        msg.textContent = 'From your media link (image).';
+        $('#linkPrev').innerHTML = mediaHTML(linkParsed, { prefix: 'k' });
+        const im = $('#linkPrev img.m-fill');
+        if (im) im.addEventListener('error', () => { msg.className = 'link-msg bad'; msg.textContent = 'That media link didn’t load. It may be switched off or deleted.'; $('#linkUse').disabled = true; }, { once: true });
+        return;
+      }
       msg.className = 'link-msg bad';
       msg.textContent = p.c === 'Photo · Pexels'
         ? 'Couldn’t load that Pexels photo. Right-click the photo on Pexels → Copy image address, and paste that instead.'

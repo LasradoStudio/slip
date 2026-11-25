@@ -6,6 +6,10 @@ window.SlipConfig = {
   /* Where the "Made with Slip" credit at the end of every document points. */
   siteUrl: 'https://lasradostudio.github.io/slip/',
 
+  /* YOUR OWN MEDIA HOST: share links from these hosts (https://<host>/v/<id>) can be pasted in a visual's Link tab.
+     Slip uses the file behind the link (https://<host>/f/<id>) and its poster (https://<host>/p/<id>). */
+  mediaLinkHosts: ['media.neillasrado.com'],
+
   /* FOOTER CREDIT: "Made by …" at the bottom of the homepage.
      Add your website (must start with https://) and your name becomes a link. */
   author: {
