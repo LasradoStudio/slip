@@ -12,8 +12,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261125e">
-<link rel="stylesheet" href="proposal.css?v=20261125e">
+<link rel="stylesheet" href="style.css?v=20261125f">
+<link rel="stylesheet" href="proposal.css?v=20261125f">
 </head>
 <body>
 
@@ -424,6 +424,16 @@
       <input type="file" id="upInput" accept="image/*,video/*" hidden>
       <p class="up-status" id="upStatus"></p>
       <p class="mhint" id="upMode"></p>
+      <details class="cloud" id="mhostBox">
+        <summary>Host videos on your own media server so clients see them</summary>
+        <p>For a Media Links server (like media.neillasrado.com). Uploaded videos go there, and <em>Copy link</em> first uploads any video that's still only on this device. The key is saved only in this browser, never in links.</p>
+        <div class="grid2">
+          <label class="field"><span>Server</span><input id="mhostUrl" placeholder="https://media.neillasrado.com" autocomplete="off" inputmode="url"></label>
+          <label class="field"><span>Upload key</span><input id="mhostKey" type="password" placeholder="paste the key" autocomplete="off"></label>
+        </div>
+        <button type="button" class="btn" id="mhostSave">Save</button>
+        <button type="button" class="btn ghost" id="mhostPush" hidden></button>
+      </details>
       <details class="cloud" id="cloudBox">
         <summary>Host uploads with Cloudinary (free) so videos work in shared links</summary>
         <p>Create a free Cloudinary account. Go to <em>Settings → Upload → Add upload preset</em>, set it to <em>Unsigned</em>, then enter the details here. They're saved only in this browser.</p>
@@ -535,11 +545,11 @@
   </div>
 </div>
 
-<script src="config.js?v=20261125e"></script>
-<script src="fx.js?v=20261125e"></script>
-<script src="scenes.js?v=20261125e"></script>
-<script src="templates.js?v=20261125e"></script>
-<script src="ai.js?v=20261125e"></script>
-<script src="app.js?v=20261125e"></script>
+<script src="config.js?v=20261125f"></script>
+<script src="fx.js?v=20261125f"></script>
+<script src="scenes.js?v=20261125f"></script>
+<script src="templates.js?v=20261125f"></script>
+<script src="ai.js?v=20261125f"></script>
+<script src="app.js?v=20261125f"></script>
 </body>
 </html>

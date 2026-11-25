@@ -155,7 +155,10 @@ Click the thumbnail next to a section to pick one of these:
    - **Your own files:** put them in a `media/` folder in this repo and paste `media/my-video.mp4`.
 4. **Upload**:
    - **Images** are compressed and stored inside the link, so they work everywhere.
-   - **Videos** only play on your own device until you connect **Cloudinary** (free). In Cloudinary, create an *unsigned upload preset* and enter the cloud name and preset under Upload. After that, uploaded videos work in shared links too.
+   - **Videos** only play on your own device until you connect a host under Upload:
+     - **Your own media server** (a Media Links server such as `media.neillasrado.com`): enter its address and upload key under *Host videos on your own media server*. Slip checks the key when you save. Uploaded videos then go straight to the server, and **Copy link** first uploads any video that is still only on this device, swaps it for the hosted copy in the document, and only then copies the link (if an upload fails, nothing is copied). There's also a button there to upload them right away. The key is saved only in this browser, never in links or Drive sync. On the server, set it with `npx wrangler secret put SLIP_KEY`.
+     - **Cloudinary** (free): create an *unsigned upload preset* and enter the cloud name and preset under Upload. After that, uploaded videos work in shared links too.
+   - **Copy link** warns you about any video, including extra references on visual pages, that still only plays on this device.
 
 ### Drag & drop
 
@@ -166,7 +169,11 @@ You can also skip the picker and drag visuals straight in:
 - **Swap:** drag one section's thumbnail onto another to swap their visuals.
 - **Picker:** while the picker is open, drop anywhere inside it.
 
-While you drag, every place you can drop gets an outline and a hint appears at the bottom. Uploaded files follow the same rules as **Upload**: images go into the link, and videos need Cloudinary to work in shared links.
+While you drag, every place you can drop gets an outline and a hint appears at the bottom. Uploaded files follow the same rules as **Upload**: images go into the link, and videos need your media server or Cloudinary to work in shared links.
+
+### Links on visuals
+
+A section or reference that has a link opens it on a **double-click** of its visual, in the editor preview and in the client view. Reference tiles in the client view are links already, so a single click opens them there.
 
 Why not Pinterest directly? Its API only works for approved developer apps with a user sign-in, which a static site can't do. Pexels covers the same need (free photos and videos), and Pinterest image links still work through **Link**.
 

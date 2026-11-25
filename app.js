@@ -424,6 +424,7 @@
     const showCost = on || !noTot || secs.some(priced);
     const showTime = on || !noTot || secs.some(it => it.t.trim());
     const LINK = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const uAttr = it => { const u = safeLink(it.u); return u ? ` data-u="${esc(u)}"` : ''; };   // double-click the visual to open its link
     const linkHTML = (it, cls = '') => { const u = safeLink(it.u); return u ? `<a class="pp-link ${cls}" href="${esc(u)}" target="_blank" rel="noopener noreferrer"><span>${esc(linkHost(u))}</span>${LINK}</a>` : ''; };
     const showPrice = it => on || !noTot || priced(it);
     /* page effect layers: one under the page's text, one over it (drawn by fx.js from a single video) */
@@ -477,7 +478,7 @@
       const tile = (t, k, span = 1, dup = false) => {
         const u = safeLink(t.u), tag = u && !on ? 'a' : 'div';
         const m = t.m && t.m.k !== 'none' ? t.m : (k ? { k: 'scene', v: 'orbit' } : null);
-        return `<${tag} class="cg-t${k || dup ? '' : ' pp-media'}"${span > 1 ? ` style="grid-column:span ${span}"` : ''}${tag === 'a' ? ` href="${esc(u)}" target="_blank" rel="noopener noreferrer"${dup ? ' tabindex="-1"' : ''}` : ''}>${mediaHTML(m, mctx({ title: t.c || it.d, text: '' }))}${dup ? '' : expandBtn(t.m)}<span class="cg-cap">${tagsHTML(t.t)}<i>${pad(k + 1)}</i>${t.c ? `<b>${esc(t.c)}</b>` : ''}${u ? `<em>${esc(linkHost(u))}${LINK}</em>` : ''}</span></${tag}>`;
+        return `<${tag} class="cg-t${k || dup ? '' : ' pp-media'}"${span > 1 ? ` style="grid-column:span ${span}"` : ''}${tag === 'a' ? ` href="${esc(u)}" target="_blank" rel="noopener noreferrer"${dup ? ' tabindex="-1"' : ''}` : u ? ` data-u="${esc(u)}"` : ''}>${mediaHTML(m, mctx({ title: t.c || it.d, text: '' }))}${dup ? '' : expandBtn(t.m)}<span class="cg-cap">${tagsHTML(t.t)}<i>${pad(k + 1)}</i>${t.c ? `<b>${esc(t.c)}</b>` : ''}${u ? `<em>${esc(linkHost(u))}${LINK}</em>` : ''}</span></${tag}>`;
       };
       /* a grid of `rest` tiles in `c` columns; the last tile stretches over any empty cells */
       const gridOf = (list, from, c) => `<div class="cg-rest" style="--c:${c}">${list.map((t, j) => tile(t, from + j, j === list.length - 1 ? 1 + (c - list.length % c) % c : 1)).join('')}</div>`;
@@ -504,7 +505,7 @@
     }
     if (it.v) return `
   <section class="pp-page pp-sec pp-visual" data-item="${ix}">
-    <div class="pp-media rv">${mediaHTML(it.m && it.m.k !== 'none' ? it.m : { k: 'scene', v: 'orbit' }, mctx({ title: it.d, text: it.x }))}</div>
+    <div class="pp-media rv"${uAttr(it)}>${mediaHTML(it.m && it.m.k !== 'none' ? it.m : { k: 'scene', v: 'orbit' }, mctx({ title: it.d, text: it.x }))}</div>
     ${expandBtn(it.m)}
     ${it.d.trim() || safeLink(it.u) || on ? `<div class="pp-vis-cap rv" style="--d:2"><span class="pp-vis-title"${ed(`items.${ix}.d`, 'Add a caption')}>${esc(it.d)}</span>${linkHTML(it)}</div>` : ''}
     ${on ? `<button type="button" class="pp-add-ref" data-add-ref="${ix}">+ Add reference</button>` : ''}
@@ -523,7 +524,7 @@
       <div class="pp-desc rv" style="--d:4">${descHTML(it.x, on ? `items.${ix}.x` : '')}</div>
       <div class="pp-sec-foot rv" style="--d:5"><span>${brand}</span>${linkHTML(it)}</div>
     </div>
-    ${it.m && it.m.k === 'none' ? '' : `<div class="pp-media rv" style="--d:1">${mediaHTML(it.m, mctx({ title: it.d, text: it.x }))}</div>`}
+    ${it.m && it.m.k === 'none' ? '' : `<div class="pp-media rv" style="--d:1"${uAttr(it)}>${mediaHTML(it.m, mctx({ title: it.d, text: it.x }))}</div>`}
   </section>`; }).join('')}
 
   ${on ? `<button type="button" class="pp-page pp-add-sec" data-add-section>
@@ -767,6 +768,18 @@
     const b = e.target.closest('[data-goto]');
     if (!b) return;
     b.closest('.pp')?.querySelector(`[data-sec="${b.dataset.goto}"]`)?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  });
+
+  /* Double-click a visual that has a link (editor preview or client view) to open the link.
+     Tiles that are already links open on a single click, so they're left to the browser. */
+  document.addEventListener('dblclick', e => {
+    if (e.target.closest('[contenteditable], [data-expand], a[href], button, .lb')) return;
+    const el = e.target.closest('[data-u]');
+    const u = el && safeLink(el.dataset.u);
+    if (!u) return;
+    e.preventDefault();
+    getSelection()?.removeAllRanges();
+    window.open(u, '_blank', 'noopener,noreferrer');
   });
 
   /* ---------- link encoding (deflate + base64url) ---------- */
@@ -1302,11 +1315,95 @@
 
   function renderUploadMode() {
     const cloud = settings.cloud && settings.preset;
-    $('#upMode').innerHTML = cloud
+    $('#upMode').innerHTML = mhOn()
+      ? `Images are compressed into the link. Videos go to your media server (<b>${esc(mhHost(settings.mhost))}</b>) and work in every shared link.`
+      : cloud
       ? `Uploads go to your Cloudinary (<b>${esc(settings.cloud)}</b>) and work in every shared link.`
       : 'Images are compressed into the link. Videos stay on this device until you connect a host below.';
     $('#cloudName').value = settings.cloud || '';
     $('#cloudPreset').value = settings.preset || '';
+    $('#mhostUrl').value = settings.mhost || '';
+    $('#mhostKey').value = settings.mkey ? '••••••••' : '';
+    const n = state ? localKeys(state).length : 0, push = $('#mhostPush');
+    push.hidden = !(mhOn() && n);
+    push.textContent = `Upload ${plural(n, 'video')} that only play${n === 1 ? 's' : ''} on this device`;
+  }
+
+  /* ---------- own media server (Media Links Worker): videos that live only in this browser get uploaded there ---------- */
+  const mhOn = () => !!(settings.mhost && settings.mkey);
+  const mhHost = u => { try { return new URL(u).host; } catch { return u; } };
+  async function mhFetch(path, opts = {}) {
+    const r = await fetch(`${settings.mhost}/api/slip${path}`, { ...opts, headers: { ...(opts.headers || {}), Authorization: `Bearer ${settings.mkey}` } })
+      .catch(() => { throw new Error('Couldn’t reach your media server.'); });
+    if (!r.ok) throw new Error(r.status === 401 ? 'Your media server didn’t accept the upload key.' : `Media server error ${r.status}.`);
+    return r.json();
+  }
+  /* size, length and a poster frame, read in the browser */
+  function probeVideo(blob) {
+    return new Promise(res => {
+      const url = URL.createObjectURL(blob), v = document.createElement('video');
+      const done = r => { URL.revokeObjectURL(url); res(r); };
+      const t = setTimeout(() => done({}), 15000);
+      v.muted = true; v.playsInline = true; v.preload = 'auto';
+      v.onloadedmetadata = () => { v.currentTime = Math.min(isFinite(v.duration) ? v.duration * 0.15 : 1, 3); };
+      v.onseeked = () => {
+        clearTimeout(t);
+        const meta = { width: v.videoWidth, height: v.videoHeight, duration: v.duration };
+        if (!v.videoWidth) return done(meta);
+        const k = Math.min(1, 1280 / v.videoWidth), c = document.createElement('canvas');
+        c.width = Math.round(v.videoWidth * k); c.height = Math.round(v.videoHeight * k);
+        c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+        c.toBlob(b => done({ ...meta, poster: b }), 'image/jpeg', 0.84);
+      };
+      v.onerror = () => { clearTimeout(t); done({}); };
+      v.src = url;
+    });
+  }
+  async function mhUpload(file, onPct = () => {}) {
+    const probe = await probeVideo(file);
+    const name = file.name || `slip-video.${(file.type.split('/')[1] || 'mp4').replace('quicktime', 'mov')}`;
+    const { id, uploadId, partSize } = await mhFetch('/uploads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: name, size: file.size, type: file.type }) });
+    const n = Math.max(1, Math.ceil(file.size / partSize)), parts = [];
+    try {
+      for (let i = 0; i < n; i++) {
+        const blob = file.slice(i * partSize, Math.min(file.size, (i + 1) * partSize));
+        for (let attempt = 1; ; attempt++) {
+          try { parts.push(await mhFetch(`/uploads/${id}/parts/${i + 1}?uploadId=${encodeURIComponent(uploadId)}`, { method: 'PUT', body: blob })); break; }
+          catch (e) { if (attempt >= 3 || /key/.test(e.message)) throw e; await new Promise(r => setTimeout(r, 1500 * attempt)); }
+        }
+        onPct((i + 1) / n);
+      }
+    } catch (e) {
+      mhFetch(`/uploads/${id}?uploadId=${encodeURIComponent(uploadId)}`, { method: 'DELETE' }).catch(() => {});
+      throw e;
+    }
+    await mhFetch(`/uploads/${id}/complete`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uploadId, parts: parts.map(p => ({ partNumber: p.partNumber, etag: p.etag })), meta: { width: probe.width, height: probe.height, duration: probe.duration } }) });
+    let poster = false;
+    if (probe.poster) poster = await mhFetch(`/items/${id}/poster`, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: probe.poster }).then(() => true, () => false);
+    const m = { k: 'vid', v: `${settings.mhost}/f/${id}` };
+    if (poster) m.p = `${settings.mhost}/p/${id}`;
+    return m;
+  }
+  /* every media object in a document: banner, section visuals and the extra references on visual pages */
+  const allMedia = d => [d.banner, ...d.items.flatMap(it => [it.m, ...(it.g || []).map(r => r.m)])].filter(Boolean);
+  const localKeys = d => [...new Set(allMedia(d).map(m => String(m.v || '')).filter(v => v.startsWith('local:')))];
+  /* Upload the videos that only exist in this browser and point the document at the hosted copies. */
+  let hosting = null;
+  function hostLocalVideos() {
+    return hosting ||= (async () => {
+      const keys = localKeys(state);
+      let done = 0, missing = 0;
+      for (const key of keys) {
+        const blob = await idb.get(key).catch(() => null);
+        if (!blob) { missing++; continue; }
+        const nm = await mhUpload(blob, p => toast(`Uploading video ${done + 1} of ${keys.length} to ${mhHost(settings.mhost)} · ${Math.round(p * 100)}%`, 120000));
+        for (const m of allMedia(state)) if (m.v === key) { m.v = nm.v; if (nm.p) m.p = nm.p; else delete m.p; }
+        done++;
+        save(); flushSave();   // keep each finished upload even if a later one fails
+      }
+      if (done) { renderItems(); update(); }
+      return { done, missing };
+    })().finally(() => { hosting = null; });
   }
   async function cloudUpload(file) {
     const fd = new FormData();
@@ -1324,6 +1421,10 @@
   async function mediaFromFile(file, say = () => {}) {
     const isVid = file.type.startsWith('video/'), isImg = file.type.startsWith('image/');
     if (!isVid && !isImg) throw new Error('That isn’t an image or a video file.');
+    if (isVid && mhOn()) {
+      say(`Uploading ${file.name} to ${mhHost(settings.mhost)}…`);
+      return { m: safeMedia(await mhUpload(file, p => say(`Uploading ${file.name}… ${Math.round(p * 100)}%`))), msg: 'Uploaded to your media server. It works in shared links' };
+    }
     if (settings.cloud && settings.preset) {
       say(`Uploading ${file.name}…`);
       try { return { m: safeMedia(await cloudUpload(file)), msg: 'Uploaded. It works in shared links' }; }
@@ -1523,6 +1624,27 @@
       store.set(SETTINGS, settings);
       renderUploadMode();
       toast(settings.cloud && settings.preset ? 'Cloudinary connected' : 'Cloudinary disconnected');
+    });
+    $('#mhostSave').addEventListener('click', async () => {
+      let host = $('#mhostUrl').value.trim().replace(/\/+$/, '');
+      const key = $('#mhostKey').value.trim();
+      if (!host) { delete settings.mhost; delete settings.mkey; store.set(SETTINGS, settings); renderUploadMode(); toast('Media server disconnected'); return; }
+      if (!/^https?:\/\//i.test(host)) host = `https://${host}`;
+      try { host = new URL(host).origin; } catch { toast('That server address doesn’t look right.'); return; }
+      if (!/^https:/.test(host) && !isLocalHost()) { toast('The server needs an https:// address.'); return; }
+      const prev = { mhost: settings.mhost, mkey: settings.mkey };
+      settings.mhost = host;
+      if (!/^•+$/.test(key)) settings.mkey = key;
+      try { await mhFetch('/ping'); }
+      catch (e) { Object.assign(settings, prev); toast(e.message, 5000); return; }
+      store.set(SETTINGS, settings);
+      renderUploadMode();
+      toast(`Connected to ${mhHost(host)}. Videos you upload will work in shared links`, 4200);
+    });
+    $('#mhostPush').addEventListener('click', async () => {
+      try { const r = await hostLocalVideos(); toast(`${plural(r.done, 'video')} uploaded${r.missing ? `, ${r.missing} not found on this device` : ''}`, 4200); }
+      catch (e) { toast(e.message, 5000); }
+      renderUploadMode();
     });
   }
 
@@ -2266,18 +2388,25 @@
     });
 
     $('#copyBtn').addEventListener('click', async () => {
+      let uploaded = 0;
+      if (mhOn() && localKeys(state).length) {   // push this-device-only videos to the media server first, so the client sees them
+        try { uploaded = (await hostLocalVideos()).done; }
+        catch (e) { toast(`${e.message} Link not copied, so nothing goes out with missing videos.`, 6000); return; }
+      }
       const url = await shareURL(state);
+      let copied = true;
       try { await navigator.clipboard.writeText(url); }
       catch {
         const ta = Object.assign(document.createElement('textarea'), { value: url });
-        document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+        document.body.appendChild(ta); ta.select(); copied = document.execCommand('copy'); ta.remove();
       }
+      if (!copied) { toast(`${plural(uploaded, 'video')} uploaded.`, 8000, { label: 'Copy link', fn: () => navigator.clipboard.writeText(url).then(() => toast('Link copied. Send it to your client')) }); return; }
       const span = $('#copyBtn span');
       span.textContent = 'Copied!';
       setTimeout(() => { span.textContent = 'Copy link'; }, 1600);
-      const all = [state.banner, ...state.items.map(i => i.m)];
-      const locals = all.filter(m => m && String(m.v || '').startsWith('local:')).length;
-      if (locals) toast(`Link copied, but ${plural(locals, 'uploaded video')} only play${locals === 1 ? 's' : ''} on this device. Connect Cloudinary in Upload to share ${locals === 1 ? 'it' : 'them'}.`, 6000);
+      const locals = localKeys(state).length;
+      if (locals) toast(`Link copied, but ${plural(locals, 'uploaded video')} only play${locals === 1 ? 's' : ''} on this device. Connect your media server or Cloudinary in Upload to share ${locals === 1 ? 'it' : 'them'}.`, 6000);
+      else if (uploaded) toast(`${plural(uploaded, 'video')} uploaded to ${mhHost(settings.mhost)}. Link copied. Send it to your client`, 4200);
       else if (url.length > 12000) toast(`Link copied (${Math.round(url.length / 1024)} KB, long because of embedded images)`, 4200);
       else toast('Link copied. Send it to your client');
     });
