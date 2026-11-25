@@ -122,6 +122,10 @@
       case 'scene': return Scenes.IDS.has(m.v) ? { k: 'scene', v: m.v } : null;
       case 'yt': return /^[\w-]{6,15}$/.test(m.v) ? { k: 'yt', v: m.v } : null;
       case 'vimeo': return /^\d{4,12}$/.test(m.v) ? { k: 'vimeo', v: m.v } : null;
+      case 'gd': {                                             // a Google Drive file, by its id
+        if (!/^[\w-]{20,80}$/.test(m.v)) return null;
+        const o = { k: 'gd', v: m.v }; const f = safeFrame(m.f); if (f) o.f = f; return o;
+      }
       case 'img': case 'vid': {
         const v = safeSrc(m.v, m.k);
         if (!v) return null;
@@ -234,6 +238,9 @@
       inner = ctx.lite
         ? `<img class="m-fill" src="${th}" alt=""><span class="m-badge">▶ YouTube</span>`
         : `<img class="m-fill m-print" src="${th}" alt=""><iframe class="m-frame" src="https://www.youtube-nocookie.com/embed/${m.v}?autoplay=1&amp;mute=1&amp;loop=1&amp;playlist=${m.v}&amp;controls=0&amp;modestbranding=1&amp;playsinline=1&amp;rel=0" allow="autoplay; encrypted-media; picture-in-picture" title="Video" tabindex="-1"></iframe>`;
+    } else if (m.k === 'gd') {
+      /* Drive files can't autoplay inside a page. Show Drive's own preview picture; Expand opens Drive's player or viewer. */
+      inner = `<img class="m-fill" src="https://drive.google.com/thumbnail?id=${m.v}&amp;sz=w1600" data-gd="${m.v}"${frameStyle(m.f)} alt="" decoding="async" referrerpolicy="no-referrer"><span class="m-badge">Google Drive</span>`;
     } else if (m.k === 'vimeo') {
       inner = ctx.lite
         ? `<div class="m-ph"></div><span class="m-badge">▶ Vimeo</span>`
@@ -256,7 +263,10 @@
     if (/(?:^|\/\/|\.)freepik\.com\//i.test(u)) return { err: 'Freepik doesn’t allow linking to its files. Download it with your account and use the Upload tab.' };
     if (/pixabay\.com\/(?:[a-z-]+\/)?(?:photos|videos|illustrations|vectors|images)?\/?[^?#]*-\d+/i.test(u) || /cdn\.pixabay\.com/i.test(u)) return { err: 'Pixabay doesn’t allow linking to its files. Download it and use the Upload tab.' };
     if (/pinterest\.[a-z.]+\/pin\//i.test(u) || /pin\.it\//i.test(u)) return { err: 'That’s a Pinterest page link. Open the pin, right-click the image → Copy image address, and paste that instead.' };
-    if (/drive\.google\.com|dropbox\.com\/s/i.test(u)) return { err: 'Share-page links (Drive, Dropbox) don’t embed. Use a direct file link, Cloudinary, or your site’s media/ folder.' };
+    if ((m = u.match(/(?:drive|docs)\.google\.com\/(?:file\/d\/|open\?(?:.*&)?id=|uc\?(?:.*&)?id=|thumbnail\?(?:.*&)?id=)([\w-]{20,80})/i))) return { k: 'gd', v: m[1] };
+    if (/drive\.google\.com\/drive\/folders/i.test(u)) return { err: 'That’s a Drive folder. Open the file itself, click Share → Copy link, and paste that.' };
+    if (/drive\.google\.com/i.test(u)) return { err: 'Paste the link to one Drive file (Share → Copy link). It looks like drive.google.com/file/d/…' };
+    if (/dropbox\.com\/s/i.test(u)) return { err: 'Dropbox share pages don’t embed. Use a direct file link, Google Drive, or your site’s media/ folder.' };
     const v = safeSrc(u, 'img');
     if (!v || v.startsWith('data:') || v.startsWith('local:')) return { err: 'Paste a full https:// link (or media/your-file.mp4).' };
     return /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(u) ? { k: 'vid', v } : { k: 'img', v };
@@ -408,7 +418,7 @@
     const showPrice = it => on || !noTot || priced(it);
     /* page effect layers: one under the page's text, one over it (drawn by fx.js from a single video) */
     const EXPAND = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    const expandBtn = m => (m && ['img', 'vid', 'yt', 'vimeo'].includes(m.k) && !ctx.lite ? `<button type="button" class="vx" data-expand aria-label="Expand" title="Expand">${EXPAND}</button>` : '');
+    const expandBtn = m => (m && ['img', 'vid', 'yt', 'vimeo', 'gd'].includes(m.k) && !ctx.lite ? `<button type="button" class="vx" data-expand aria-label="Expand" title="Expand">${EXPAND}</button>` : '');
     const fxOn = fxAllowed(d) && !ctx.lite;
     const fxBack = k => (fxOn ? `<div class="fx" data-fx="${k}" aria-hidden="true"><video muted loop playsinline preload="auto" src="media/${d.fx}-${k}.mp4"></video><canvas class="fx-b"></canvas></div>` : '');
     const fxFront = fxOn ? '<canvas class="fx-f" aria-hidden="true"></canvas>' : '';
@@ -707,7 +717,8 @@
     if (!media) return;
     const img = media.querySelector('img.m-fill:not(.m-print)'), vid = media.querySelector('video.m-fill'), fr = media.querySelector('iframe.m-frame');
     let inner = '';
-    if (vid && vid.src) inner = `<video src="${esc(vid.currentSrc || vid.src)}" controls autoplay loop playsinline></video>`;
+    if (img && img.dataset.gd) inner = `<iframe src="https://drive.google.com/file/d/${img.dataset.gd}/preview" allow="autoplay; fullscreen" allowfullscreen title="Google Drive file"></iframe>`;
+    else if (vid && vid.src) inner = `<video src="${esc(vid.currentSrc || vid.src)}" controls autoplay loop playsinline></video>`;
     else if (fr) {
       const yt = /embed\/([\w-]{6,15})/.exec(fr.src), vm = /vimeo\.com\/video\/(\d+)/.exec(fr.src);
       const src = yt ? `https://www.youtube-nocookie.com/embed/${yt[1]}?autoplay=1&rel=0&playsinline=1` : vm ? `https://player.vimeo.com/video/${vm[1]}?autoplay=1` : '';
@@ -1150,8 +1161,8 @@
     $('#upStatus').textContent = '';
     const cur = targetMedia();
     setTab(!cur || cur.k === 'scene' || cur.k === 'none' ? 'motion' : 'link');
-    if (cur && ['img', 'vid', 'yt', 'vimeo'].includes(cur.k) && !String(cur.v).startsWith('data:') && !String(cur.v).startsWith('local:')) {
-      $('#linkIn').value = cur.k === 'yt' ? `https://youtu.be/${cur.v}` : cur.k === 'vimeo' ? `https://vimeo.com/${cur.v}` : cur.v;
+    if (cur && ['img', 'vid', 'yt', 'vimeo', 'gd'].includes(cur.k) && !String(cur.v).startsWith('data:') && !String(cur.v).startsWith('local:')) {
+      $('#linkIn').value = cur.k === 'yt' ? `https://youtu.be/${cur.v}` : cur.k === 'vimeo' ? `https://vimeo.com/${cur.v}` : cur.k === 'gd' ? `https://drive.google.com/file/d/${cur.v}/view` : cur.v;
       onLinkInput();
     }
     dlg().showModal();
@@ -1252,7 +1263,7 @@
     linkParsed = safeMedia(p);
     msg.className = 'link-msg';
     msg.textContent = p.c === 'Photo · Pexels' ? 'Pexels photo, found from the page link'
-      : { yt: 'YouTube video, plays muted on a loop', vimeo: 'Vimeo video, plays muted on a loop', vid: 'Video file', img: 'Image' }[p.k];
+      : { yt: 'YouTube video, plays muted on a loop', vimeo: 'Vimeo video, plays muted on a loop', vid: 'Video file', img: 'Image', gd: 'Google Drive file. Set sharing to “Anyone with the link”. The page shows its preview picture; Expand opens it in full.' }[p.k];
     $('#linkPrev').innerHTML = mediaHTML(linkParsed, { prefix: 'k' });
     $('#linkUse').disabled = !linkParsed;
     // If the file can't load (wrong link, blocked hotlinking), say so instead of saving a broken visual
@@ -1263,6 +1274,7 @@
       msg.className = 'link-msg bad';
       msg.textContent = p.c === 'Photo · Pexels'
         ? 'Couldn’t load that Pexels photo. Right-click the photo on Pexels → Copy image address, and paste that instead.'
+        : p.k === 'gd' ? 'Drive wouldn’t show that file. In Drive, open Share and set General access to “Anyone with the link”, then paste the link again.'
         : 'That file didn’t load. The link may be wrong, private, or blocked from use on other sites.';
       $('#linkUse').disabled = true;
     }, { once: true });

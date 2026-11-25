@@ -149,6 +149,7 @@ Click the thumbnail next to a section to pick one of these:
 3. **Link**: paste a YouTube or Vimeo link (plays muted on a loop), a direct `.mp4`, or any image URL.
    - **Pexels:** paste a photo's normal page link (`pexels.com/photo/…`) and Slip finds the image by itself. For videos, right-click the playing video → *Copy video address*.
    - **Pinterest / Unsplash:** right-click the image → *Copy image address*.
+   - **Google Drive:** in Drive, open the file → **Share** → set *Anyone with the link* → **Copy link**, and paste it. The page shows Drive's preview picture of the file (Drive files can't autoplay inside a page); on a visual page, **Expand** opens Drive's own player or viewer. A folder link won't work; it has to be one file.
    - If a link doesn't load, Slip tells you before you use it.
    - **Your own files:** put them in a `media/` folder in this repo and paste `media/my-video.mp4`.
 4. **Upload**:
