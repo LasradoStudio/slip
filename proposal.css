@@ -593,7 +593,8 @@ html.lb-open { overflow: hidden; }
 .fx video { position: absolute; width: 2px; height: 2px; opacity: 0; pointer-events: none; }
 .fx-b, .fx-f { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 .fx-f { z-index: 5; }
-@container (max-width: 760px) { .fx, .fx-f { display: none; } }   /* the path is drawn for the wide layout */
+/* The path is drawn for the wide layout. On a narrow page show the whole frame (nothing cropped), lowered so it crosses the name. */
+@container (max-width: 760px) { .fx-b, .fx-f { object-fit: contain; object-position: 50% 65%; } }
 @media print { .fx, .fx-f { display: none !important; } }
 
 /* low-power mode (set by scenes.js when frames run slow) */
