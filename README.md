@@ -150,6 +150,7 @@ Click the thumbnail next to a section to pick one of these:
    - **Pexels:** paste a photo's normal page link (`pexels.com/photo/…`) and Slip finds the image by itself. For videos, right-click the playing video → *Copy video address*.
    - **Pinterest / Unsplash:** right-click the image → *Copy image address*.
    - **Your own media host:** share links from the hosts listed in `config.js → mediaLinkHosts` (for example `media.neillasrado.com/v/…`) work directly. Slip plays the file behind the link, muted on a loop, or shows it if it is a picture.
+   - **Instagram:** paste a public post or reel link (`instagram.com/reel/…` or `instagram.com/p/…`). Slip shows Instagram's own player cropped to just the post, with reels zoomed to fill the box. Instagram doesn't allow autoplay, so it plays when clicked; **Expand** shows the whole embed. In a PDF it prints as a plain placeholder.
    - **Google Drive:** in Drive, open the file → **Share** → set *Anyone with the link* → **Copy link**, and paste it. The page shows Drive's preview picture of the file (Drive files can't autoplay inside a page); on a visual page, **Expand** opens Drive's own player or viewer. A folder link won't work; it has to be one file.
    - If a link doesn't load, Slip tells you before you use it.
    - **Your own files:** put them in a `media/` folder in this repo and paste `media/my-video.mp4`.

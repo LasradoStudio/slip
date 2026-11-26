@@ -123,6 +123,7 @@
       case 'yt': return /^[\w-]{6,15}$/.test(m.v) ? { k: 'yt', v: m.v } : null;
       case 'vimeo': return /^\d{4,12}$/.test(m.v) ? { k: 'vimeo', v: m.v } : null;
       case 'fr': return /^[\w-]{6,40}$/.test(m.v) ? { k: 'fr', v: m.v } : null;   // a FrameRate (framerate.tv) video, by its id
+      case 'ig': return /^(?:p|reel|tv)\/[\w-]{5,40}$/.test(m.v) ? { k: 'ig', v: m.v } : null;   // an Instagram post or reel, as "reel/<id>"
       case 'gd': {                                             // a Google Drive file, by its id
         if (!/^[\w-]{20,80}$/.test(m.v)) return null;
         const o = { k: 'gd', v: m.v }; const f = safeFrame(m.f); if (f) o.f = f; return o;
@@ -244,6 +245,12 @@
       inner = ctx.lite
         ? `<div class="m-ph"></div><span class="m-badge">▶ FrameRate</span>`
         : `<div class="m-ph m-print"></div><iframe class="m-frame" src="https://framerate.tv/embed/${m.v}?background=1&amp;autoplay=1&amp;muted=1&amp;loop=1" allow="autoplay; fullscreen; picture-in-picture" title="Video" tabindex="-1"></iframe>`;
+    } else if (m.k === 'ig') {
+      /* Instagram's own embed, cropped to just the post (its header and footer sit outside the box).
+         Instagram doesn't allow autoplay, so it plays when clicked; Expand shows the whole embed. */
+      inner = ctx.lite
+        ? `<div class="m-ph"></div><span class="m-badge">▶ Instagram</span>`
+        : `<div class="m-ph m-print"></div><iframe class="m-ig${/^(reel|tv)\//.test(m.v) ? ' m-ig-reel' : ''}" src="https://www.instagram.com/${m.v}/embed/" scrolling="no" loading="lazy" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" title="Instagram post"></iframe>`;
     } else if (m.k === 'gd') {
       /* Drive files can't autoplay inside a page. Show Drive's own preview picture; Expand opens Drive's player or viewer. */
       inner = `<img class="m-fill" src="https://drive.google.com/thumbnail?id=${m.v}&amp;sz=w1600" data-gd="${m.v}"${frameStyle(m.f)} alt="" decoding="async" referrerpolicy="no-referrer"><span class="m-badge">Google Drive</span>`;
@@ -264,6 +271,8 @@
     if ((m = u.match(/^https:\/\/([\w.-]+)\/(?:v|f|p)\/([A-Za-z0-9]{6,32})(?:[/?#.]|$)/i)) && (window.SlipConfig?.mediaLinkHosts || []).includes(m[1].toLowerCase()))
       return { k: 'vid', v: `https://${m[1].toLowerCase()}/f/${m[2]}`, p: `https://${m[1].toLowerCase()}/p/${m[2]}`, own: true };
     if ((m = u.match(/framerate\.tv\/(?:watch|embed)\/([\w-]{6,40})/i))) return { k: 'fr', v: m[1] };
+    if ((m = u.match(/instagram\.com\/(?:[\w.]+\/)?(p|reels?|tv)\/([\w-]{5,40})/i))) return { k: 'ig', v: `${m[1].toLowerCase().replace('reels', 'reel')}/${m[2]}` };
+    if (/instagram\.com/i.test(u)) return { err: 'Paste the link to one Instagram post or reel. It looks like instagram.com/reel/… or instagram.com/p/…' };
     if (/framerate\.tv/i.test(u)) return { err: 'Open the video on FrameRate and paste its page link. It looks like framerate.tv/watch/…' };
     // Pexels photo page → direct image (no key needed)
     if ((m = u.match(/pexels\.com\/(?:[a-z]{2}-[a-z]{2}\/)?(?:photo|foto)\/(?:[^/?#]*-)?(\d{4,12})(?:[/?#]|$)/i)))
@@ -429,7 +438,7 @@
     const showPrice = it => on || !noTot || priced(it);
     /* page effect layers: one under the page's text, one over it (drawn by fx.js from a single video) */
     const EXPAND = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    const expandBtn = m => (m && ['img', 'vid', 'yt', 'vimeo', 'gd', 'fr'].includes(m.k) && !ctx.lite ? `<button type="button" class="vx" data-expand aria-label="Expand" title="Expand">${EXPAND}</button>` : '');
+    const expandBtn = m => (m && ['img', 'vid', 'yt', 'vimeo', 'gd', 'fr', 'ig'].includes(m.k) && !ctx.lite ? `<button type="button" class="vx" data-expand aria-label="Expand" title="Expand">${EXPAND}</button>` : '');
     const fxOn = fxAllowed(d) && !ctx.lite;
     const fxBack = k => (fxOn ? `<div class="fx" data-fx="${k}" aria-hidden="true"><video muted loop playsinline preload="auto" src="media/${d.fx}-${k}.mp4"></video><canvas class="fx-b"></canvas></div>` : '');
     const fxFront = fxOn ? '<canvas class="fx-f" aria-hidden="true"></canvas>' : '';
@@ -727,9 +736,10 @@
     const box = btn.closest('.cg-t') || btn.closest('.pp-visual');
     const media = box && box.querySelector('.media');
     if (!media) return;
-    const img = media.querySelector('img.m-fill:not(.m-print)'), vid = media.querySelector('video.m-fill'), fr = media.querySelector('iframe.m-frame');
+    const img = media.querySelector('img.m-fill:not(.m-print)'), vid = media.querySelector('video.m-fill'), fr = media.querySelector('iframe.m-frame'), ig = media.querySelector('iframe.m-ig');
     let inner = '';
-    if (img && img.dataset.gd) inner = `<iframe src="https://drive.google.com/file/d/${img.dataset.gd}/preview" allow="autoplay; fullscreen" allowfullscreen title="Google Drive file"></iframe>`;
+    if (ig) inner = `<iframe class="lb-ig" src="${esc(ig.src)}" scrolling="no" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen title="Instagram post"></iframe>`;
+    else if (img && img.dataset.gd) inner = `<iframe src="https://drive.google.com/file/d/${img.dataset.gd}/preview" allow="autoplay; fullscreen" allowfullscreen title="Google Drive file"></iframe>`;
     else if (vid && vid.src) inner = `<video src="${esc(vid.currentSrc || vid.src)}" controls autoplay loop playsinline></video>`;
     else if (fr) {
       const fz = /framerate\.tv\/embed\/([\w-]{6,40})/.exec(fr.src);
@@ -1186,8 +1196,8 @@
     $('#upStatus').textContent = '';
     const cur = targetMedia();
     setTab(!cur || cur.k === 'scene' || cur.k === 'none' ? 'motion' : 'link');
-    if (cur && ['img', 'vid', 'yt', 'vimeo', 'gd', 'fr'].includes(cur.k) && !String(cur.v).startsWith('data:') && !String(cur.v).startsWith('local:')) {
-      $('#linkIn').value = cur.k === 'yt' ? `https://youtu.be/${cur.v}` : cur.k === 'vimeo' ? `https://vimeo.com/${cur.v}` : cur.k === 'gd' ? `https://drive.google.com/file/d/${cur.v}/view` : cur.k === 'fr' ? `https://framerate.tv/watch/${cur.v}` : cur.v;
+    if (cur && ['img', 'vid', 'yt', 'vimeo', 'gd', 'fr', 'ig'].includes(cur.k) && !String(cur.v).startsWith('data:') && !String(cur.v).startsWith('local:')) {
+      $('#linkIn').value = cur.k === 'yt' ? `https://youtu.be/${cur.v}` : cur.k === 'vimeo' ? `https://vimeo.com/${cur.v}` : cur.k === 'gd' ? `https://drive.google.com/file/d/${cur.v}/view` : cur.k === 'fr' ? `https://framerate.tv/watch/${cur.v}` : cur.k === 'ig' ? `https://www.instagram.com/${cur.v}/` : cur.v;
       onLinkInput();
     }
     dlg().showModal();
@@ -1288,7 +1298,7 @@
     linkParsed = safeMedia(p);
     msg.className = 'link-msg';
     msg.textContent = p.own ? 'From your media link. Videos play muted on a loop.' : p.c === 'Photo · Pexels' ? 'Pexels photo, found from the page link'
-      : { yt: 'YouTube video, plays muted on a loop', vimeo: 'Vimeo video, plays muted on a loop', vid: 'Video file', img: 'Image', fr: 'FrameRate video, plays muted by itself', gd: 'Google Drive file. Set sharing to “Anyone with the link”. The page shows its preview picture; Expand opens it in full.' }[p.k];
+      : { yt: 'YouTube video, plays muted on a loop', vimeo: 'Vimeo video, plays muted on a loop', vid: 'Video file', img: 'Image', fr: 'FrameRate video, plays muted by itself', ig: 'Instagram post. It plays when clicked (Instagram doesn’t allow autoplay). The post must be public.', gd: 'Google Drive file. Set sharing to “Anyone with the link”. The page shows its preview picture; Expand opens it in full.' }[p.k];
     $('#linkPrev').innerHTML = mediaHTML(linkParsed, { prefix: 'k' });
     $('#linkUse').disabled = !linkParsed;
     // If the file can't load (wrong link, blocked hotlinking), say so instead of saving a broken visual
