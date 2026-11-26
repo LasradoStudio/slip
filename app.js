@@ -1394,6 +1394,15 @@
     if (poster) m.p = `${settings.mhost}/p/${id}`;
     return m;
   }
+  /* Store the link's code on the media server and get back its short link (media.neillasrado.com/s/…). */
+  async function shortLink(longURL) {
+    const code = longURL.split('#q=')[1];
+    const kind = state.layout === 'proposal' && state.type === 'quote' ? 'Proposal' : state.type === 'quote' ? 'Quote' : 'Invoice';
+    const title = [`${kind}${state.to.name ? ` for ${state.to.name}` : ''}`, state.from.name].filter(Boolean).join(' · ');
+    const j = await mhFetch('/links', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doc: currentId, base: location.origin + location.pathname, code, title }) });
+    if (!/^https?:\/\/[^\s"'<>]+\/s\/[A-Za-z0-9]+$/.test(j.url || '')) throw new Error('short link');
+    return j.url;
+  }
   /* every media object in a document: banner, section visuals and the extra references on visual pages */
   const allMedia = d => [d.banner, ...d.items.flatMap(it => [it.m, ...(it.g || []).map(r => r.m)])].filter(Boolean);
   const localKeys = d => [...new Set(allMedia(d).map(m => String(m.v || '')).filter(v => v.startsWith('local:')))];
@@ -2403,7 +2412,11 @@
         try { uploaded = (await hostLocalVideos()).done; }
         catch (e) { toast(`${e.message} Link not copied, so nothing goes out with missing videos.`, 6000); return; }
       }
-      const url = await shareURL(state);
+      let url = await shareURL(state), short = false;
+      if (mhOn()) {   // a short link from the media server; the same document keeps the same short link
+        try { url = await shortLink(url); short = true; }
+        catch { /* fall back to the full link */ }
+      }
       let copied = true;
       try { await navigator.clipboard.writeText(url); }
       catch {
@@ -2416,7 +2429,9 @@
       setTimeout(() => { span.textContent = 'Copy link'; }, 1600);
       const locals = localKeys(state).length;
       if (locals) toast(`Link copied, but ${plural(locals, 'uploaded video')} only play${locals === 1 ? 's' : ''} on this device. Connect your media server or Cloudinary in Upload to share ${locals === 1 ? 'it' : 'them'}.`, 6000);
-      else if (uploaded) toast(`${plural(uploaded, 'video')} uploaded to ${mhHost(settings.mhost)}. Link copied. Send it to your client`, 4200);
+      else if (uploaded) toast(`${plural(uploaded, 'video')} uploaded to ${mhHost(settings.mhost)}. ${short ? 'Short link' : 'Link'} copied. Send it to your client`, 4200);
+      else if (short) toast('Short link copied. It always opens the latest version you copied', 4200);
+      else if (mhOn()) toast('Link copied, but the short link didn’t work, so this is the full link', 5000);
       else if (url.length > 12000) toast(`Link copied (${Math.round(url.length / 1024)} KB, long because of embedded images)`, 4200);
       else toast('Link copied. Send it to your client');
     });
