@@ -276,6 +276,9 @@ html.lb-open { overflow: hidden; }
   .pp-toc.no-cost:not(.no-time) .pp-toc-h, .pp-toc.no-cost:not(.no-time) .pp-toc-row { grid-template-columns: 1fr; }
   .pp-sec { grid-template-columns: 1fr; padding: 10px; min-height: 0; }
   .pp-sec .pp-media, .pp-sec.flip .pp-media { order: -1; min-height: 0; aspect-ratio: 16 / 10; }
+  /* the first tile of a collage is also a .pp-media: it must stay a tile. Safari honours the 16:10 above over the grid's
+     stretch, which left that one tile a short strip beside full-height neighbours. */
+  .pp-sec.pp-visual .cg-t.pp-media { order: 0; aspect-ratio: auto; min-height: 150px; }
   .pp-sec-body { padding: 14px 8px 8px; }
   /* stack title then price; no wrapping, or the price wraps into a second column off-screen */
   .pp-sec-head { flex-direction: column; flex-wrap: nowrap; gap: 14px; margin: 22px 0 16px; }
