@@ -483,7 +483,10 @@
     if (it.v && it.g && it.g.length) {
       const tiles = [{ m: it.m, u: it.u, c: (it.x || '').split('\n')[0].trim(), t: it.t }, ...it.g];
       const tagsHTML = t => { const a = (t || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 4); return a.length ? `<span class="cg-tags">${a.map(s => `<s>${esc(s)}</s>`).join('')}</span>` : ''; };
-      const lay = it.gl || 'mosaic', n = tiles.length;
+      /* on a phone every collage becomes one row of square tiles that drifts and can be swiped, whatever layout was picked:
+         four tiles across a phone are too small to read. (Decided when the page is drawn; the editor keeps the real layout.) */
+      const slide = !on && !ctx.lite && typeof matchMedia === 'function' && matchMedia('(max-width: 640px)').matches;
+      const lay = slide ? 'bento' : it.gl || 'mosaic', n = tiles.length;
       const tile = (t, k, span = 1, dup = false) => {
         const u = safeLink(t.u), tag = u && !on ? 'a' : 'div';
         const m = t.m && t.m.k !== 'none' ? t.m : (k ? { k: 'scene', v: 'orbit' } : null);
@@ -494,7 +497,7 @@
       /* bento: columns of one or two boxes on a track wider than the page; CSS breathes their sizes, a small loop drifts it */
       const bento = () => {
         const cols = [];
-        for (let k = 0; k < n;) { const take = cols.length % 2 && n - k > 1 ? 2 : 1; cols.push(tiles.slice(k, k + take).map((t, j) => [t, k + j])); k += take; }
+        for (let k = 0; k < n;) { const take = !slide && cols.length % 2 && n - k > 1 ? 2 : 1; cols.push(tiles.slice(k, k + take).map((t, j) => [t, k + j])); k += take; }
         const W = [46, 34, 40, 34];   // column widths, as a share of the page; fixed per position so both copies match
         const set = dup => cols.map((c, ci) => `<div class="cg-col${dup ? ' cg-dup' : ''}" style="--w:${W[ci % 4]}"${dup ? ' aria-hidden="true"' : ''}>${c.map(([t, k]) => tile(t, k, 1, dup)).join('')}</div>`).join('');
         /* three or more columns are wider than the page, so a second copy lets the track loop round for ever */
@@ -506,9 +509,9 @@
       return `
   <section class="pp-page pp-sec pp-visual has-refs" data-item="${ix}">
     <div class="pp-vis-head rv"><span class="pp-vis-title"${ed(`items.${ix}.d`, 'Add a title')}>${esc(it.d)}</span><span class="pp-idx">${pad(n)} references</span></div>
-    <div class="cg cg-${lay} rv" style="--d:1;--pc:${n <= 3 ? n : n === 4 ? 2 : n <= 6 ? 3 : 4}">${body}</div>
+    <div class="cg cg-${lay}${slide ? ' cg-slide' : ''} rv" style="--d:1;--pc:${n <= 3 ? n : n === 4 ? 2 : n <= 6 ? 3 : 4}">${body}</div>
     <div class="pp-vis-foot rv" style="--d:2" role="group" aria-label="View"><button type="button" data-vis-view="collage" aria-pressed="true" aria-label="Collage view" title="Collage view"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><rect x="2.5" y="2.5" width="6" height="6" rx="1.2"/><rect x="11.5" y="2.5" width="6" height="6" rx="1.2"/><rect x="2.5" y="11.5" width="6" height="6" rx="1.2"/><rect x="11.5" y="11.5" width="6" height="6" rx="1.2"/></svg></button><button type="button" data-vis-view="list" aria-pressed="false" aria-label="List view" title="List view"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14"/></svg></button></div>
-    ${lay === 'bento' && !it.na ? '<button type="button" class="cg-nav prev" data-cg-nav="-1" aria-label="Browse left">‹</button><button type="button" class="cg-nav next" data-cg-nav="1" aria-label="Browse right">›</button>' : ''}
+    ${it.gl === 'bento' && !it.na ? '<button type="button" class="cg-nav prev" data-cg-nav="-1" aria-label="Browse left">‹</button><button type="button" class="cg-nav next" data-cg-nav="1" aria-label="Browse right">›</button>' : ''}
     ${on && n < 9 ? `<button type="button" class="pp-add-ref" data-add-ref="${ix}">+ Add reference</button>` : ''}
   </section>`;
     }

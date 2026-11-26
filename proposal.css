@@ -203,6 +203,10 @@
   .cg-strip { flex-direction: column; }
   .cg-col { width: calc(var(--w, 40) * 1.7cqi); }
   .cg-bento { min-height: 320px; }
+  /* phone: one row of square tiles (app.js draws every collage this way on a phone) */
+  .cg-bento.cg-slide { min-height: 0; }
+  .cg-slide .cg-col { width: 70cqi; aspect-ratio: 1; }
+  .cg-slide .cg-col .cg-t { min-height: 0; }
   .cg-t { min-height: 150px; }
 }
 /* expand button on pictures and videos, and the full view it opens */
